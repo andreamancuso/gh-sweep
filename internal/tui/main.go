@@ -1,6 +1,9 @@
 package tui
 
 import (
+	"fmt"
+
+	"github.com/andreamancuso/gh-sweep/internal/config"
 	"github.com/andreamancuso/gh-sweep/internal/orphans"
 	"github.com/andreamancuso/gh-sweep/internal/tui/components/analytics"
 	"github.com/andreamancuso/gh-sweep/internal/tui/components/branches"
@@ -69,11 +72,28 @@ type MainModel struct {
 }
 
 // NewMainModel creates a new main TUI model
-func NewMainModel(repo string) MainModel {
+func NewMainModel(repo string, cfg *config.Config) MainModel {
+	repos := []string{}
+	org := ""
+	if cfg != nil {
+		repos = cfg.Repositories
+		org = cfg.DefaultOrg
+	}
+	if repo == "" && len(repos) > 0 {
+		repo = repos[0]
+	}
+	baseline := repo
+	if baseline == "" && len(repos) > 0 {
+		baseline = repos[0]
+	}
+
 	return MainModel{
-		ready: false,
-		mode:  ViewHome,
-		repo:  repo,
+		ready:    false,
+		mode:     ViewHome,
+		repo:     repo,
+		repos:    repos,
+		baseline: baseline,
+		org:      org,
 	}
 }
 
@@ -402,6 +422,17 @@ func (m MainModel) renderHome() string {
 
 	if m.repo == "" && len(m.repos) == 0 {
 		content += helpStyle.Render("💡 Configure with --repo flag or .gh-sweep.yaml\n\n")
+	} else {
+		if m.repo != "" {
+			content += helpStyle.Render("Default repo: "+m.repo) + "\n"
+		}
+		if len(m.repos) > 0 {
+			content += helpStyle.Render("Configured repos: "+fmt.Sprintf("%d", len(m.repos))) + "\n"
+		}
+		if m.org != "" {
+			content += helpStyle.Render("Default org: "+m.org) + "\n"
+		}
+		content += "\n"
 	}
 
 	content += helpStyle.Render("Press 0-9/o/p/s to select a view | q to quit")

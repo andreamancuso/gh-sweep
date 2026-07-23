@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/andreamancuso/gh-sweep/internal/config"
 	"github.com/andreamancuso/gh-sweep/internal/tui"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
@@ -31,9 +32,14 @@ It provides interactive tools for:
 Use 'gh-sweep <command> --help' for more information about a command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		repo, _ := cmd.Flags().GetString("repo")
+		cfg, err := config.Load()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+			os.Exit(1)
+		}
 
 		// Launch full interactive TUI
-		m := tui.NewMainModel(repo)
+		m := tui.NewMainModel(repo, cfg)
 		p := tea.NewProgram(m, tea.WithAltScreen())
 
 		if _, err := p.Run(); err != nil {

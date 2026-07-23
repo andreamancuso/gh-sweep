@@ -1,5 +1,5 @@
 # gh-sweep configuration example
-# Copy this file to .gh-sweep.yaml in your home directory or project root
+# Copy this file to .gh-sweep.yaml in your current directory, beside the executable, or in your home directory
 
 # Default GitHub organization (optional)
 default_org: your-org

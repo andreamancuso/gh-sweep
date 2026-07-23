@@ -121,7 +121,16 @@ GitHub billing/storage pages can lag after deletion. The repository API may show
 
 ## Optional config
 
-Create `.gh-sweep.yaml` in the repo or your home directory:
+`gh-sweep` looks for `.gh-sweep.yaml` in:
+
+1. the current working directory
+2. the executable directory
+3. your home directory
+4. `~/.config/gh-sweep/config.yaml`
+
+When the full TUI is launched without `--repo`, the first configured repository becomes the default single-repo target, and `repositories` powers the multi-repo views.
+
+Example:
 
 ```yaml
 default_org: your-org

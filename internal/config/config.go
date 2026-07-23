@@ -133,8 +133,11 @@ func Load() (*Config, error) {
 
 	// Try to load from multiple locations
 	homeDir, _ := os.UserHomeDir()
+	exePath, _ := os.Executable()
+	exeDir := filepath.Dir(exePath)
 	configPaths := []string{
 		".gh-sweep.yaml",
+		filepath.Join(exeDir, ".gh-sweep.yaml"),
 		filepath.Join(homeDir, ".gh-sweep.yaml"),
 		filepath.Join(homeDir, ".config", "gh-sweep", "config.yaml"),
 	}
