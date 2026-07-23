@@ -6,31 +6,36 @@ import (
 	"strings"
 
 	"github.com/andreamancuso/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/tui/components/reposelect"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 // Model represents the protection rules TUI state
 type Model struct {
-	repos    []string
-	rules    map[string]*github.ProtectionRule
-	baseline string
-	diffs    map[string][]string
-	cursor   int
-	width    int
-	height   int
-	loading  bool
-	err      error
+	repos     []string
+	selector  reposelect.Model
+	rules     map[string]*github.ProtectionRule
+	baseline  string
+	diffs     map[string][]string
+	cursor    int
+	width     int
+	height    int
+	loading   bool
+	selecting bool
+	err       error
 }
 
 // NewModel creates a new protection rules model
 func NewModel(repos []string, baseline string) Model {
 	return Model{
-		repos:    repos,
-		baseline: baseline,
-		rules:    make(map[string]*github.ProtectionRule),
-		diffs:    make(map[string][]string),
-		loading:  true,
+		repos:     repos,
+		selector:  reposelect.New("Branch Protection: Select Repositories", repos),
+		baseline:  baseline,
+		rules:     make(map[string]*github.ProtectionRule),
+		diffs:     make(map[string][]string),
+		loading:   false,
+		selecting: true,
 	}
 }
 
@@ -42,6 +47,9 @@ type rulesLoadedMsg struct {
 
 // Init initializes the model
 func (m Model) Init() tea.Cmd {
+	if m.selecting {
+		return nil
+	}
 	return m.loadRules
 }
 
@@ -107,12 +115,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case rulesLoadedMsg:
 		m.loading = false
+		m.selecting = false
 		m.rules = msg.rules
 		m.diffs = msg.diffs
 		m.err = msg.err
+		m.cursor = 0
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.selecting {
+			return m.updateSelection(msg)
+		}
+
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
@@ -132,8 +146,39 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) updateSelection(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	var result reposelect.Result
+	m.selector, result = m.selector.Update(msg)
+	if result.Quit {
+		return m, tea.Quit
+	}
+	if result.Confirmed {
+		m.repos = includeRepo(result.Selected, m.baseline)
+		m.loading = true
+		m.selecting = false
+		return m, m.loadRules
+	}
+	return m, nil
+}
+
+func includeRepo(repos []string, required string) []string {
+	if required == "" {
+		return repos
+	}
+	for _, repo := range repos {
+		if repo == required {
+			return repos
+		}
+	}
+	return append([]string{required}, repos...)
+}
+
 // View renders the model
 func (m Model) View() string {
+	if m.selecting {
+		return m.selector.View()
+	}
+
 	if m.loading {
 		return "Loading protection rules...\n"
 	}
@@ -151,6 +196,7 @@ func (m Model) View() string {
 
 	b.WriteString(titleStyle.Render("🛡️  Branch Protection Rules"))
 	b.WriteString("\n\n")
+	b.WriteString(fmt.Sprintf("Repositories: %d\n\n", len(m.repos)))
 
 	if m.baseline != "" {
 		b.WriteString(fmt.Sprintf("Baseline: %s\n\n", m.baseline))

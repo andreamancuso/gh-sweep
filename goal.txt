@@ -1,0 +1,309 @@
+# Goal: Add safe repo-selection preflight flows across multi-repo TUI views
+
+## Objective
+
+Make every TUI feature that fans out across many repositories ask the operator which repositories to inspect before it performs GitHub API calls. The current Watch Status selector is the first implementation of this pattern; generalize it and apply it consistently.
+
+This is primarily a UX/safety/performance goal:
+
+- avoid surprising API fan-out when `.gh-sweep.yaml` contains many repos
+- avoid long "Loading..." states with no operator control
+- make expensive or sensitive views explicitly scoped
+- reduce repeated selector code by extracting a reusable TUI component
+
+## Current state
+
+The root TUI now loads `.gh-sweep.yaml` and passes configured repositories into the main model. Watch Status has been changed to:
+
+- show configured repos before making subscription-status calls
+- select all repos by default
+- support `space` toggle, `a` select all, `n` select none, and `enter` confirm/load
+- avoid GitHub calls until the user confirms a non-empty selection
+- load subscription status concurrently after confirmation
+
+Other multi-repo views still load immediately when selected from the home screen.
+
+## Scope
+
+Apply the same preflight-selection pattern to these views:
+
+1. Secrets Audit
+2. Webhooks
+3. Collaborators
+4. Releases
+5. Settings Comparison
+6. Branch Protection
+
+Also evaluate Orphan Branches for a separate namespace/repo preflight screen, but do not mix it into the first implementation unless it is clearly low-risk and clean.
+
+Do not change destructive behavior in this goal except where a view already performs actions. This goal is about selecting the read/inspection scope before loading data.
+
+## Design direction
+
+### Shared selector
+
+Extract a reusable selector component/package instead of duplicating Watch Status logic.
+
+Suggested location:
+
+```text
+internal/tui/components/reposelect/
+```
+
+Suggested capabilities:
+
+- input: `[]string` repo names in `owner/repo` format
+- output: selected `[]string`
+- state:
+  - cursor
+  - selected map
+  - title
+  - subtitle/help text
+  - optional default select-all behavior
+- key handling:
+  - `j` / `down`: move down
+  - `k` / `up`: move up
+  - `space`: toggle current row
+  - `a`: select all
+  - `n`: select none
+  - `enter`: confirm if at least one selected
+  - `esc`: cancel/back
+  - `q` / `ctrl+c`: quit
+- rendering:
+  - title
+  - repository count
+  - selected count
+  - "No GitHub calls run until you press Enter"
+  - per-row checkbox
+  - status/warning for empty selection
+  - compact help line
+
+Keep it UI-only. Do not put GitHub API calls in the selector.
+
+### Main-model integration
+
+For each multi-repo view:
+
+- user selects the view from home
+- view opens in repo-selection mode
+- user confirms selected repos
+- only then does the view perform GitHub calls for those repos
+
+Preserve the existing `esc` behavior: once inside the loaded view, `esc` returns to home. On the selector screen, `esc` should also return home.
+
+### Selection defaults
+
+Default to all configured repos selected. This is convenient, but the key point is that the operator sees the list and can narrow it before network work starts.
+
+If there are zero configured repos, keep the existing behavior or show a clear message depending on the view:
+
+- for views that cannot work without repos, show "No configured repositories. Add repositories to .gh-sweep.yaml or pass a repo flag where supported."
+- avoid silently querying broad account/namespace scope unless the view was explicitly designed for that.
+
+## View-specific requirements
+
+### 1. Secrets Audit
+
+Current behavior:
+
+- loads org secrets
+- loads repo secrets for every configured repo
+
+Desired behavior:
+
+- show repo selector before loading repo secrets
+- after confirmation, load repo secrets only for selected repos
+- still use `default_org` for org secrets if configured
+- show selected repo count in the loaded view
+
+Reason:
+
+- sensitive data surface, even though values are not exposed
+- one API call per repo
+
+### 2. Webhooks
+
+Current behavior:
+
+- loads webhooks for every configured repo
+- then loads delivery history for each webhook
+
+Desired behavior:
+
+- show repo selector first
+- load webhooks only for selected repos
+- load webhook health only for selected repos
+- consider bounded concurrency for repo-level and webhook-level loading
+- show selected repo count in the loaded view
+
+Reason:
+
+- potentially explosive call count: repos × webhooks × delivery history
+- high risk of looking like a hang
+
+### 3. Collaborators
+
+Current behavior:
+
+- loads collaborators for every configured repo
+
+Desired behavior:
+
+- show repo selector first
+- load collaborators only for selected repos
+- show selected repo count in loaded view
+
+Reason:
+
+- permission-sensitive and one API call per repo
+
+### 4. Releases
+
+Current behavior:
+
+- loads releases and latest release for every configured repo
+
+Desired behavior:
+
+- show repo selector first
+- load releases only for selected repos
+- consider avoiding the separate latest-release call if `ListReleases` already returns enough data to derive latest locally
+- show selected repo count in loaded view
+
+Reason:
+
+- read-only, but noisy with many repos
+
+### 5. Settings Comparison
+
+Current behavior:
+
+- loads repo settings for every configured repo
+- compares against `baseline`
+
+Desired behavior:
+
+- show repo selector first
+- ensure the baseline repo is included in the selected set
+- if the baseline is not selected, either:
+  - automatically include it and show that fact, or
+  - block confirmation with a clear message
+- optionally add a second baseline-pick step later, but do not overbuild it in the first pass
+- load settings only for selected repos
+
+Reason:
+
+- comparison results are only meaningful for an intentional subset
+
+### 6. Branch Protection
+
+Current behavior:
+
+- loads protection rules for every configured repo
+- currently checks hardcoded branch `main`
+
+Desired behavior:
+
+- show repo selector first
+- ensure the baseline repo is included, same as Settings Comparison
+- load branch protection only for selected repos
+- do not change branch-selection behavior in this goal unless required by tests
+
+Reason:
+
+- comparison results are only meaningful for an intentional subset
+- branch protection data is permission-sensitive
+
+### 7. Orphan Branches follow-up
+
+Current behavior:
+
+- namespace-oriented, not config-repo-oriented
+- can scan a broad namespace
+
+Recommendation:
+
+- defer unless simple
+- future design should include:
+  - namespace confirmation
+  - optional repo subset if configured repos match the namespace
+  - no deletion without explicit typed confirmation, preserving existing safety behavior
+
+## Single-repo views follow-up
+
+These views do not need the bulk preflight selector, but they should eventually get a repo picker:
+
+- Branches
+- Comments
+- Analytics
+- GHA Performance
+- Storage
+
+Current behavior uses the first configured repo when no `--repo` is provided. That is acceptable for now but not ideal.
+
+Future repo picker should:
+
+- show configured repos
+- allow choosing exactly one repo
+- start the selected single-repo view after confirmation
+
+Do not implement this unless the multi-repo selector work is complete and still within budget.
+
+## Implementation plan
+
+1. Add shared repo selector component.
+2. Refactor Watch Status to use the shared component.
+3. Apply selector to Collaborators and Releases first; they are the simplest.
+4. Apply selector to Secrets.
+5. Apply selector to Webhooks, including bounded loading if feasible.
+6. Apply selector to Settings Comparison and Branch Protection, preserving baseline requirements.
+7. Add tests for selector behavior and each view's no-network-before-confirmation behavior.
+8. Update README and/or docs only where user-facing behavior changes.
+
+## Testing requirements
+
+Run focused tests after each affected view:
+
+```bash
+go test ./internal/tui/components/reposelect
+go test ./internal/tui/components/watching
+go test ./internal/tui/components/collaborators
+go test ./internal/tui/components/releases
+go test ./internal/tui/components/secrets
+go test ./internal/tui/components/webhooks
+go test ./internal/tui/components/settings
+go test ./internal/tui/components/protection
+go test ./internal/tui
+```
+
+Run final validation:
+
+```bash
+go test ./...
+go build ./...
+mise run lint
+mise run build
+mise run test
+git diff --check
+```
+
+Do not run broad mutating format commands on Windows unless necessary; they may rewrite line endings across many files. Prefer `gofmt` only on touched Go files.
+
+## Acceptance criteria
+
+- Selecting Watch Status, Secrets, Webhooks, Collaborators, Releases, Settings, or Branch Protection does not immediately fan out to all configured repos.
+- Each view shows a repo-selection preflight screen first.
+- No GitHub API calls for repo-specific data happen until the user confirms a non-empty repo selection.
+- Select all, select none, per-row toggle, and empty-selection guard work consistently.
+- Comparison views handle baseline inclusion clearly.
+- Existing loaded-view navigation still works.
+- Tests cover the selector and representative integrations.
+- README or development docs mention the preflight pattern where useful.
+
+## Non-goals
+
+- Do not implement persistent per-feature repo lists yet.
+- Do not add a full config editor.
+- Do not change GitHub token handling.
+- Do not broaden destructive operations.
+- Do not rewrite all TUI components for style only.

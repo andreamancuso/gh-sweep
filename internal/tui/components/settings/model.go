@@ -6,33 +6,38 @@ import (
 	"strings"
 
 	"github.com/andreamancuso/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/tui/components/reposelect"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 // Model represents the settings comparison TUI state
 type Model struct {
-	repos    []string
-	settings map[string]*github.RepoSettings
-	baseline string
-	diffs    map[string][]github.SettingsDiff
-	cursor   int
-	width    int
-	height   int
-	loading  bool
-	err      error
-	viewMode string // "overview", "diff"
+	repos     []string
+	selector  reposelect.Model
+	settings  map[string]*github.RepoSettings
+	baseline  string
+	diffs     map[string][]github.SettingsDiff
+	cursor    int
+	width     int
+	height    int
+	loading   bool
+	selecting bool
+	err       error
+	viewMode  string // "overview", "diff"
 }
 
 // NewModel creates a new settings comparison model
 func NewModel(repos []string, baseline string) Model {
 	return Model{
-		repos:    repos,
-		baseline: baseline,
-		settings: make(map[string]*github.RepoSettings),
-		diffs:    make(map[string][]github.SettingsDiff),
-		loading:  true,
-		viewMode: "overview",
+		repos:     repos,
+		selector:  reposelect.New("Settings Comparison: Select Repositories", repos),
+		baseline:  baseline,
+		settings:  make(map[string]*github.RepoSettings),
+		diffs:     make(map[string][]github.SettingsDiff),
+		loading:   false,
+		selecting: true,
+		viewMode:  "overview",
 	}
 }
 
@@ -44,6 +49,9 @@ type settingsLoadedMsg struct {
 
 // Init initializes the model
 func (m Model) Init() tea.Cmd {
+	if m.selecting {
+		return nil
+	}
 	return m.loadSettings
 }
 
@@ -110,12 +118,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case settingsLoadedMsg:
 		m.loading = false
+		m.selecting = false
 		m.settings = msg.settings
 		m.diffs = msg.diffs
 		m.err = msg.err
+		m.cursor = 0
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.selecting {
+			return m.updateSelection(msg)
+		}
+
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
@@ -140,8 +154,39 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) updateSelection(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	var result reposelect.Result
+	m.selector, result = m.selector.Update(msg)
+	if result.Quit {
+		return m, tea.Quit
+	}
+	if result.Confirmed {
+		m.repos = includeRepo(result.Selected, m.baseline)
+		m.loading = true
+		m.selecting = false
+		return m, m.loadSettings
+	}
+	return m, nil
+}
+
+func includeRepo(repos []string, required string) []string {
+	if required == "" {
+		return repos
+	}
+	for _, repo := range repos {
+		if repo == required {
+			return repos
+		}
+	}
+	return append([]string{required}, repos...)
+}
+
 // View renders the model
 func (m Model) View() string {
+	if m.selecting {
+		return m.selector.View()
+	}
+
 	if m.loading {
 		return "Loading repository settings...\n"
 	}
@@ -159,6 +204,7 @@ func (m Model) View() string {
 
 	b.WriteString(titleStyle.Render("⚙️  Repository Settings Comparison"))
 	b.WriteString("\n\n")
+	b.WriteString(fmt.Sprintf("Repositories: %d\n\n", len(m.repos)))
 
 	if m.baseline != "" {
 		b.WriteString(fmt.Sprintf("Baseline: %s\n\n", m.baseline))

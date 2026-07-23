@@ -150,7 +150,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			case "0":
 				m.mode = ViewWatching
-				m.watchingModel = watching.NewModel()
+				m.watchingModel = watching.NewModel(m.repos)
 				return m, m.watchingModel.Init()
 
 			case "1":

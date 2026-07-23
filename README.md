@@ -130,6 +130,8 @@ GitHub billing/storage pages can lag after deletion. The repository API may show
 
 When the full TUI is launched without `--repo`, the first configured repository becomes the default single-repo target, and `repositories` powers the multi-repo views.
 
+Multi-repo views show a repository-selection screen before calling GitHub. Use `space` to toggle one repo, `a` to select all, `n` to select none, and `enter` to load the selected repos.
+
 Example:
 
 ```yaml

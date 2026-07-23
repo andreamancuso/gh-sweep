@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/andreamancuso/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/tui/components/reposelect"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -13,23 +15,32 @@ import (
 type Model struct {
 	username      string
 	userRepos     []github.RepoBasic
+	selector      reposelect.Model
 	subscriptions map[string]*github.Subscription
 	cursor        int
 	width         int
 	height        int
 	loading       bool
+	selecting     bool
 	err           error
 	viewMode      string
 	selected      map[int]bool
 	statusMsg     string
 }
 
-func NewModel() Model {
+func NewModel(configRepos ...[]string) Model {
+	repos := []string{}
+	if len(configRepos) > 0 {
+		repos = configRepos[0]
+	}
+
 	return Model{
 		subscriptions: make(map[string]*github.Subscription),
 		selected:      make(map[int]bool),
-		loading:       true,
+		loading:       false,
+		selecting:     true,
 		viewMode:      "unwatched",
+		selector:      reposelect.New("Watch Status: Select Repositories", repos),
 	}
 }
 
@@ -51,6 +62,9 @@ type unwatchResultMsg struct {
 }
 
 func (m Model) Init() tea.Cmd {
+	if m.selecting {
+		return nil
+	}
 	return m.loadData
 }
 
@@ -71,20 +85,37 @@ func (m Model) loadData() tea.Msg {
 		return dataLoadedMsg{err: fmt.Errorf("failed to list user repos: %w", err)}
 	}
 
-	subscriptions := make(map[string]*github.Subscription)
-	for _, repo := range repos {
-		sub, err := client.GetRepoSubscription(repo.Owner, repo.Name)
-		if err != nil {
-			continue
-		}
-		subscriptions[repo.FullName] = sub
-	}
+	subscriptions := loadSubscriptions(client, repos)
 
 	return dataLoadedMsg{
 		username:      username,
 		userRepos:     repos,
 		subscriptions: subscriptions,
 		err:           nil,
+	}
+}
+
+func loadSelectedData(repos []github.RepoBasic) tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+		client, err := github.NewClient(ctx)
+		if err != nil {
+			return dataLoadedMsg{err: fmt.Errorf("failed to create GitHub client: %w", err)}
+		}
+
+		username, err := client.GetAuthenticatedUser()
+		if err != nil {
+			return dataLoadedMsg{err: fmt.Errorf("failed to get authenticated user: %w", err)}
+		}
+
+		subscriptions := loadSubscriptions(client, repos)
+
+		return dataLoadedMsg{
+			username:      username,
+			userRepos:     repos,
+			subscriptions: subscriptions,
+			err:           nil,
+		}
 	}
 }
 
@@ -131,10 +162,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case dataLoadedMsg:
 		m.loading = false
+		m.selecting = false
 		m.username = msg.username
 		m.userRepos = msg.userRepos
 		m.subscriptions = msg.subscriptions
 		m.err = msg.err
+		m.cursor = 0
+		m.selected = make(map[int]bool)
 		return m, nil
 
 	case watchResultMsg:
@@ -163,6 +197,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.selecting {
+			return m.updateSelection(msg)
+		}
+
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
@@ -202,6 +240,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "u":
 			return m.handleUnwatch()
 		}
+	}
+
+	return m, nil
+}
+
+func (m Model) updateSelection(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	var result reposelect.Result
+	m.selector, result = m.selector.Update(msg)
+	if result.Quit {
+		return m, tea.Quit
+	}
+	if result.Confirmed {
+		m.loading = true
+		m.selecting = false
+		m.statusMsg = ""
+		return m, loadSelectedData(reposFromConfig(result.Selected))
 	}
 
 	return m, nil
@@ -268,6 +322,10 @@ func (m Model) handleUnwatch() (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
+	if m.selecting {
+		return m.renderRepoSelection()
+	}
+
 	if m.loading {
 		return "Loading watch status...\n"
 	}
@@ -366,4 +424,57 @@ func (m Model) View() string {
 	b.WriteString(helpStyle.Render("j/k: navigate | space: select | w: watch | u: unwatch | 1/2/3: view mode | esc: back"))
 
 	return b.String()
+}
+
+func (m Model) renderRepoSelection() string {
+	return m.selector.View()
+}
+
+func reposFromConfig(configRepos []string) []github.RepoBasic {
+	repos := make([]github.RepoBasic, 0, len(configRepos))
+	for _, repo := range configRepos {
+		owner, name, ok := strings.Cut(repo, "/")
+		if !ok || owner == "" || name == "" {
+			continue
+		}
+
+		repos = append(repos, github.RepoBasic{
+			Name:     name,
+			FullName: repo,
+			Owner:    owner,
+		})
+	}
+	return repos
+}
+
+func loadSubscriptions(client *github.Client, repos []github.RepoBasic) map[string]*github.Subscription {
+	const concurrency = 8
+
+	subscriptions := make(map[string]*github.Subscription)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, concurrency)
+
+	for _, repo := range repos {
+		repo := repo
+		wg.Add(1)
+		sem <- struct{}{}
+
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			sub, err := client.GetRepoSubscription(repo.Owner, repo.Name)
+			if err != nil {
+				return
+			}
+
+			mu.Lock()
+			subscriptions[repo.FullName] = sub
+			mu.Unlock()
+		}()
+	}
+
+	wg.Wait()
+	return subscriptions
 }

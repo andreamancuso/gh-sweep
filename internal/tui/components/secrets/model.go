@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/andreamancuso/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/tui/components/reposelect"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -14,6 +15,7 @@ import (
 type Model struct {
 	org           string
 	repos         []string
+	selector      reposelect.Model
 	orgSecrets    []github.Secret
 	repoSecrets   map[string][]github.Secret
 	unusedSecrets []string
@@ -21,6 +23,7 @@ type Model struct {
 	width         int
 	height        int
 	loading       bool
+	selecting     bool
 	err           error
 	viewMode      string // "org", "repo", "unused"
 }
@@ -30,8 +33,10 @@ func NewModel(org string, repos []string) Model {
 	return Model{
 		org:         org,
 		repos:       repos,
+		selector:    reposelect.New("Secrets Audit: Select Repositories", repos),
 		repoSecrets: make(map[string][]github.Secret),
-		loading:     true,
+		loading:     false,
+		selecting:   true,
 		viewMode:    "org",
 	}
 }
@@ -45,6 +50,9 @@ type secretsLoadedMsg struct {
 
 // Init initializes the model
 func (m Model) Init() tea.Cmd {
+	if m.selecting {
+		return nil
+	}
 	return m.loadSecrets
 }
 
@@ -111,13 +119,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case secretsLoadedMsg:
 		m.loading = false
+		m.selecting = false
 		m.orgSecrets = msg.orgSecrets
 		m.repoSecrets = msg.repoSecrets
 		m.unusedSecrets = msg.unusedSecrets
 		m.err = msg.err
+		m.cursor = 0
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.selecting {
+			return m.updateSelection(msg)
+		}
+
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
@@ -153,8 +167,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) updateSelection(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	var result reposelect.Result
+	m.selector, result = m.selector.Update(msg)
+	if result.Quit {
+		return m, tea.Quit
+	}
+	if result.Confirmed {
+		m.repos = result.Selected
+		m.loading = true
+		m.selecting = false
+		return m, m.loadSecrets
+	}
+	return m, nil
+}
+
 // View renders the model
 func (m Model) View() string {
+	if m.selecting {
+		return m.selector.View()
+	}
+
 	if m.loading {
 		return "Loading secrets...\n"
 	}
@@ -172,6 +205,7 @@ func (m Model) View() string {
 
 	b.WriteString(titleStyle.Render("🔐 Secrets Audit (Read-Only)"))
 	b.WriteString("\n\n")
+	b.WriteString(fmt.Sprintf("Repositories: %d\n\n", len(m.repos)))
 
 	// View mode tabs
 	activeTab := lipgloss.NewStyle().

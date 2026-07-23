@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/andreamancuso/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/tui/components/reposelect"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -13,11 +14,13 @@ import (
 // Model represents the collaborator management TUI state
 type Model struct {
 	repos         []string
+	selector      reposelect.Model
 	collaborators map[string][]github.Collaborator
 	cursor        int
 	width         int
 	height        int
 	loading       bool
+	selecting     bool
 	err           error
 	viewMode      string // "byrepo", "byuser"
 }
@@ -26,8 +29,10 @@ type Model struct {
 func NewModel(repos []string) Model {
 	return Model{
 		repos:         repos,
+		selector:      reposelect.New("Collaborators: Select Repositories", repos),
 		collaborators: make(map[string][]github.Collaborator),
-		loading:       true,
+		loading:       false,
+		selecting:     true,
 		viewMode:      "byrepo",
 	}
 }
@@ -39,6 +44,9 @@ type collaboratorsLoadedMsg struct {
 
 // Init initializes the model
 func (m Model) Init() tea.Cmd {
+	if m.selecting {
+		return nil
+	}
 	return m.loadCollaborators
 }
 
@@ -87,11 +95,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case collaboratorsLoadedMsg:
 		m.loading = false
+		m.selecting = false
 		m.collaborators = msg.collaborators
 		m.err = msg.err
+		m.cursor = 0
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.selecting {
+			return m.updateSelection(msg)
+		}
+
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
@@ -122,6 +136,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) updateSelection(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	var result reposelect.Result
+	m.selector, result = m.selector.Update(msg)
+	if result.Quit {
+		return m, tea.Quit
+	}
+	if result.Confirmed {
+		m.repos = result.Selected
+		m.loading = true
+		m.selecting = false
+		return m, m.loadCollaborators
+	}
+	return m, nil
+}
+
 func (m Model) getTotalCollaborators() int {
 	// Get unique collaborators across all repos
 	uniqueUsers := make(map[string]bool)
@@ -135,6 +164,10 @@ func (m Model) getTotalCollaborators() int {
 
 // View renders the model
 func (m Model) View() string {
+	if m.selecting {
+		return m.selector.View()
+	}
+
 	if m.loading {
 		return "Loading collaborators...\n"
 	}
@@ -152,6 +185,7 @@ func (m Model) View() string {
 
 	b.WriteString(titleStyle.Render("👥 Collaborator Management"))
 	b.WriteString("\n\n")
+	b.WriteString(fmt.Sprintf("Repositories: %d\n\n", len(m.repos)))
 
 	// View mode tabs
 	activeTab := lipgloss.NewStyle().
