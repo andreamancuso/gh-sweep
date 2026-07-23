@@ -6,6 +6,11 @@
 
 ## Features
 
+### Storage Cleanup
+- **🧹 GitHub Actions Storage Cleanup**: Inspect repo git size, Actions artifacts, Actions caches, workflow run logs, releases/assets, and linked packages
+- **Preview-first deletion**: Delete Actions artifacts, caches, and failed/cancelled workflow runs with dry-run previews and typed confirmation
+- **Local recovery path**: Cleanup runs from your laptop and does not depend on GitHub Actions being available
+
 ### Core Features (Phase 1)
 - **🌳 Interactive Branch Management**: Visualize branch relationships, create stacked PRs, batch delete with dependency analysis
 - **🛡️ Branch Protection Rules**: Compare and sync protection rules across repositories
@@ -64,11 +69,20 @@ brew install KyleKing/tap/gh-sweep
 ## Quick Start
 
 ```bash
-# Configure GitHub token (uses gh CLI if available)
-export GITHUB_TOKEN="ghp_..."
-
-# Or authenticate with gh CLI
+# Authenticate with gh CLI
 gh auth login
+
+# Optional fallback for automation:
+# export GH_TOKEN="..."
+
+# Inspect GitHub Actions storage
+gh-sweep storage --repo owner/repo --list
+
+# Preview recommended cleanup without deleting
+gh-sweep storage --repo owner/repo --recommended --dry-run
+
+# Execute recommended cleanup after non-interactive confirmation
+gh-sweep storage --repo owner/repo --recommended --yes
 
 # Launch interactive branch management
 gh-sweep branches
@@ -159,12 +173,76 @@ gh-sweep protection --template templates/default.yaml --apply
 gh-sweep protection --baseline owner/baseline-repo
 ```
 
+### GitHub Actions Storage Cleanup
+```bash
+# Interactive storage dashboard
+gh-sweep storage --repo owner/repo
+
+# Print inventory and largest artifacts
+gh-sweep storage --repo owner/repo --list
+
+# Include release asset and package detail
+gh-sweep storage --repo owner/repo --list --inspect-releases --inspect-packages
+
+# Preview recommended cleanup:
+# - artifacts older than 3 days
+# - caches older than 3 days
+# - failed/cancelled workflow runs
+# - preserves releases, packages, source branches, tags, and git history
+gh-sweep storage --repo owner/repo --recommended --dry-run
+
+# Execute recommended cleanup without an interactive prompt
+gh-sweep storage --repo owner/repo --recommended --yes
+
+# Delete artifacts older than 3 days
+gh-sweep storage --repo owner/repo --delete-artifacts --older-than 3d
+
+# Delete all Actions artifacts
+gh-sweep storage --repo owner/repo --delete-all-artifacts
+
+# Delete Actions caches, optionally constrained by age
+gh-sweep storage --repo owner/repo --delete-caches --older-than 7d
+
+# Delete failed/cancelled workflow runs
+gh-sweep storage --repo owner/repo --delete-runs --conclusion failure,cancelled
+```
+
+Storage categories are intentionally reported separately:
+
+- repo git storage
+- GitHub Actions artifacts
+- GitHub Actions caches
+- workflow run logs
+- releases and release assets
+- GitHub Packages
+
+GitHub billing/storage dashboards can lag after deletion, so the repository API can show cleanup before billing pages refresh.
+
+### Security Notes
+
+`gh-sweep` uses local authentication. Prefer `gh auth login` or a short-lived environment token (`GH_TOKEN`/`GITHUB_TOKEN`) with the minimum required scopes. The app does not persist GitHub tokens in `.gh-sweep.yaml` by default.
+
+Cleanup may require these scopes depending on what you inspect/delete:
+
+- `repo`
+- `workflow`
+- `read:packages`
+- `delete:packages`
+
+Package inspection will report the required refresh command when package scopes are missing:
+
+```bash
+gh auth refresh -s read:packages -s delete:packages
+```
+
+Deletion operations are irreversible. Artifacts, caches, and workflow runs are previewed before deletion. Successful workflow-run deletion requires typed repository-name confirmation even when `--yes` is supplied. Release and package deletion are not part of recommended cleanup.
+
 ## Development
 
 ### Prerequisites
-- Go 1.21+
+- Go 1.25+
 - [mise](https://mise.jdx.dev/) (recommended) or go task runner
-- GitHub personal access token with repo scope
+- GitHub CLI authentication or an environment token with the required scopes
 
 ### Setup
 ```bash

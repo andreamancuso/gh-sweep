@@ -65,7 +65,11 @@ func (c *Client) ListUserRepos() ([]RepoBasic, error) {
 
 	for {
 		var response []repoListResponse
-		path := fmt.Sprintf("user/repos?affiliation=owner&per_page=%d&page=%d", perPage, page)
+		path := apiPathWithQuery("user/repos", query(map[string]string{
+			"affiliation": "owner",
+			"per_page":    fmt.Sprintf("%d", perPage),
+			"page":        fmt.Sprintf("%d", page),
+		}))
 
 		if err := c.Get(path, &response); err != nil {
 			return nil, fmt.Errorf("failed to list user repos: %w", err)
@@ -95,12 +99,12 @@ func (c *Client) ListUserRepos() ([]RepoBasic, error) {
 
 func (c *Client) GetRepoSubscription(owner, repo string) (*Subscription, error) {
 	var response subscriptionResponse
-	path := fmt.Sprintf("repos/%s/%s/subscription", owner, repo)
+	path := apiPath("repos", owner, repo, "subscription")
 
 	if err := c.Get(path, &response); err != nil {
 		if strings.Contains(err.Error(), "404") {
 			return &Subscription{
-				Repository: fmt.Sprintf("%s/%s", owner, repo),
+				Repository: repoFullName(owner, repo),
 				Subscribed: false,
 				Ignored:    false,
 				State:      WatchStateNotWatching,
@@ -117,7 +121,7 @@ func (c *Client) GetRepoSubscription(owner, repo string) (*Subscription, error) 
 	}
 
 	return &Subscription{
-		Repository: fmt.Sprintf("%s/%s", owner, repo),
+		Repository: repoFullName(owner, repo),
 		Subscribed: response.Subscribed,
 		Ignored:    response.Ignored,
 		Reason:     response.Reason,
@@ -127,7 +131,7 @@ func (c *Client) GetRepoSubscription(owner, repo string) (*Subscription, error) 
 }
 
 func (c *Client) SetRepoSubscription(owner, repo string, subscribed, ignored bool) (*Subscription, error) {
-	path := fmt.Sprintf("repos/%s/%s/subscription", owner, repo)
+	path := apiPath("repos", owner, repo, "subscription")
 	body := map[string]bool{
 		"subscribed": subscribed,
 		"ignored":    ignored,
@@ -146,7 +150,7 @@ func (c *Client) SetRepoSubscription(owner, repo string, subscribed, ignored boo
 	}
 
 	return &Subscription{
-		Repository: fmt.Sprintf("%s/%s", owner, repo),
+		Repository: repoFullName(owner, repo),
 		Subscribed: response.Subscribed,
 		Ignored:    response.Ignored,
 		Reason:     response.Reason,
@@ -156,7 +160,7 @@ func (c *Client) SetRepoSubscription(owner, repo string, subscribed, ignored boo
 }
 
 func (c *Client) DeleteRepoSubscription(owner, repo string) error {
-	path := fmt.Sprintf("repos/%s/%s/subscription", owner, repo)
+	path := apiPath("repos", owner, repo, "subscription")
 	if err := c.Delete(path, nil); err != nil {
 		return fmt.Errorf("failed to delete subscription: %w", err)
 	}

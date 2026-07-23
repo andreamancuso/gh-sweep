@@ -222,14 +222,13 @@ func runGHAPerf(cmd *cobra.Command, _ []string) {
 }
 
 func exportCSV(runs []github.RunTiming, path string) error {
-	f, err := os.Create(path)
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600) // #nosec G304 -- output path is an explicit user-requested CSV export target.
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
 	w := csv.NewWriter(f)
-	defer w.Flush()
 
 	header := []string{
 		"run_id", "workflow", "branch", "conclusion", "created_at",
@@ -261,7 +260,8 @@ func exportCSV(runs []github.RunTiming, path string) error {
 		}
 	}
 
-	return nil
+	w.Flush()
+	return w.Error()
 }
 
 func printSummary(runs []github.RunTiming) {

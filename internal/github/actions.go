@@ -7,15 +7,15 @@ import (
 
 // WorkflowRun represents a GitHub Actions workflow run
 type WorkflowRun struct {
-	ID          int
-	Name        string
-	Status      string
-	Conclusion  string
-	Branch      string
-	HeadSHA     string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	Duration    time.Duration
+	ID         int
+	Name       string
+	Status     string
+	Conclusion string
+	Branch     string
+	HeadSHA    string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	Duration   time.Duration
 }
 
 type workflowRunsResponse struct {
@@ -34,7 +34,7 @@ type workflowRunsResponse struct {
 // ListWorkflowRuns lists workflow runs for a repository
 func (c *Client) ListWorkflowRuns(owner, repo string) ([]WorkflowRun, error) {
 	var response workflowRunsResponse
-	path := fmt.Sprintf("repos/%s/%s/actions/runs", owner, repo)
+	path := apiPath("repos", owner, repo, "actions", "runs")
 
 	if err := c.Get(path, &response); err != nil {
 		return nil, fmt.Errorf("failed to list workflow runs: %w", err)
@@ -60,11 +60,11 @@ func (c *Client) ListWorkflowRuns(owner, repo string) ([]WorkflowRun, error) {
 
 // WorkflowRunStats represents statistics about workflow runs
 type WorkflowRunStats struct {
-	TotalRuns      int
-	SuccessRate    float64
-	FailureCount   int
-	AvgDuration    time.Duration
-	Runs           []WorkflowRun
+	TotalRuns    int
+	SuccessRate  float64
+	FailureCount int
+	AvgDuration  time.Duration
+	Runs         []WorkflowRun
 }
 
 // AnalyzeWorkflowRuns analyzes workflow runs and returns statistics

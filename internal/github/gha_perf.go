@@ -86,16 +86,16 @@ type workflowsResponse struct {
 
 type workflowRunsDetailResponse struct {
 	WorkflowRuns []struct {
-		ID           int       `json:"id"`
-		Name         string    `json:"name"`
-		WorkflowID   int       `json:"workflow_id"`
-		Status       string    `json:"status"`
-		Conclusion   string    `json:"conclusion"`
-		HeadBranch   string    `json:"head_branch"`
-		HeadSHA      string    `json:"head_sha"`
-		CreatedAt    time.Time `json:"created_at"`
-		UpdatedAt    time.Time `json:"updated_at"`
-		Path         string    `json:"path"`
+		ID         int       `json:"id"`
+		Name       string    `json:"name"`
+		WorkflowID int       `json:"workflow_id"`
+		Status     string    `json:"status"`
+		Conclusion string    `json:"conclusion"`
+		HeadBranch string    `json:"head_branch"`
+		HeadSHA    string    `json:"head_sha"`
+		CreatedAt  time.Time `json:"created_at"`
+		UpdatedAt  time.Time `json:"updated_at"`
+		Path       string    `json:"path"`
 	} `json:"workflow_runs"`
 }
 
@@ -120,7 +120,7 @@ type jobsResponse struct {
 
 func (c *Client) ListWorkflows(owner, repo string) ([]WorkflowFile, error) {
 	var response workflowsResponse
-	path := fmt.Sprintf("repos/%s/%s/actions/workflows", owner, repo)
+	path := apiPath("repos", owner, repo, "actions", "workflows")
 
 	if err := c.Get(path, &response); err != nil {
 		return nil, fmt.Errorf("failed to list workflows: %w", err)
@@ -157,16 +157,18 @@ func (c *Client) FetchWorkflowRuns(owner, repo string, opts FetchWorkflowRunsOpt
 	}
 
 	var path string
-	if opts.WorkflowFile != "" {
-		path = fmt.Sprintf("repos/%s/%s/actions/workflows/%s/runs?per_page=%d&status=completed",
-			owner, repo, opts.WorkflowFile, limit)
-	} else {
-		path = fmt.Sprintf("repos/%s/%s/actions/runs?per_page=%d&status=completed",
-			owner, repo, limit)
+	values := query(map[string]string{
+		"per_page": fmt.Sprintf("%d", limit),
+		"status":   "completed",
+	})
+	if opts.Branch != "" {
+		values.Set("branch", opts.Branch)
 	}
 
-	if opts.Branch != "" {
-		path += "&branch=" + opts.Branch
+	if opts.WorkflowFile != "" {
+		path = apiPathWithQuery(apiPath("repos", owner, repo, "actions", "workflows", opts.WorkflowFile, "runs"), values)
+	} else {
+		path = apiPathWithQuery(apiPath("repos", owner, repo, "actions", "runs"), values)
 	}
 
 	var response workflowRunsDetailResponse
@@ -207,7 +209,7 @@ func (c *Client) FetchWorkflowRuns(owner, repo string, opts FetchWorkflowRunsOpt
 }
 
 func (c *Client) FetchRunDetails(owner, repo string, runID int) (*RunTiming, error) {
-	path := fmt.Sprintf("repos/%s/%s/actions/runs/%d/jobs", owner, repo, runID)
+	path := apiPath("repos", owner, repo, "actions", "runs", fmt.Sprintf("%d", runID), "jobs")
 
 	var response jobsResponse
 	if err := c.Get(path, &response); err != nil {

@@ -17,8 +17,8 @@ type Branch struct {
 
 // BranchListResponse is the response from the GitHub API
 type branchListResponse struct {
-	Name      string `json:"name"`
-	Commit    struct {
+	Name   string `json:"name"`
+	Commit struct {
 		SHA    string `json:"sha"`
 		Commit struct {
 			Author struct {
@@ -32,7 +32,7 @@ type branchListResponse struct {
 // ListBranches lists all branches for a repository
 func (c *Client) ListBranches(owner, repo string) ([]Branch, error) {
 	var response []branchListResponse
-	path := fmt.Sprintf("repos/%s/%s/branches", owner, repo)
+	path := apiPath("repos", owner, repo, "branches")
 
 	if err := c.Get(path, &response); err != nil {
 		return nil, fmt.Errorf("failed to list branches: %w", err)
@@ -58,7 +58,7 @@ func (c *Client) CompareBranches(owner, repo, base, head string) (ahead, behind 
 		BehindBy int `json:"behind_by"`
 	}
 
-	path := fmt.Sprintf("repos/%s/%s/compare/%s...%s", owner, repo, base, head)
+	path := apiPath("repos", owner, repo, "compare", base+"..."+head)
 
 	if err := c.Get(path, &response); err != nil {
 		return 0, 0, fmt.Errorf("failed to compare branches: %w", err)
@@ -69,7 +69,7 @@ func (c *Client) CompareBranches(owner, repo, base, head string) (ahead, behind 
 
 // DeleteBranch deletes a branch
 func (c *Client) DeleteBranch(owner, repo, branch string) error {
-	path := fmt.Sprintf("repos/%s/%s/git/refs/heads/%s", owner, repo, branch)
+	path := apiPath("repos", owner, repo, "git", "refs", "heads", branch)
 
 	if err := c.Delete(path, nil); err != nil {
 		return fmt.Errorf("failed to delete branch: %w", err)
@@ -91,7 +91,7 @@ func (c *Client) CreatePullRequest(owner, repo, title, body, head, base string) 
 		Number int `json:"number"`
 	}
 
-	path := fmt.Sprintf("repos/%s/%s/pulls", owner, repo)
+	path := apiPath("repos", owner, repo, "pulls")
 
 	if err := c.Post(path, requestBody, &response); err != nil {
 		return 0, fmt.Errorf("failed to create pull request: %w", err)
@@ -153,7 +153,7 @@ func (c *Client) GetDefaultBranch(owner, repo string) (string, error) {
 		DefaultBranch string `json:"default_branch"`
 	}
 
-	path := fmt.Sprintf("repos/%s/%s", owner, repo)
+	path := apiPath("repos", owner, repo)
 
 	if err := c.Get(path, &response); err != nil {
 		return "", fmt.Errorf("failed to get default branch: %w", err)

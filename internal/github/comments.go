@@ -21,11 +21,11 @@ type Comment struct {
 }
 
 type commentResponse struct {
-	ID        int    `json:"id"`
-	Body      string `json:"body"`
-	Path      string `json:"path"`
-	Line      int    `json:"line"`
-	User      struct {
+	ID   int    `json:"id"`
+	Body string `json:"body"`
+	Path string `json:"path"`
+	Line int    `json:"line"`
+	User struct {
 		Login string `json:"login"`
 	} `json:"user"`
 	CreatedAt   time.Time `json:"created_at"`
@@ -36,7 +36,7 @@ type commentResponse struct {
 // ListPRComments lists all comments for a pull request
 func (c *Client) ListPRComments(owner, repo string, prNumber int) ([]Comment, error) {
 	var response []commentResponse
-	path := fmt.Sprintf("repos/%s/%s/pulls/%d/comments", owner, repo, prNumber)
+	path := apiPath("repos", owner, repo, "pulls", fmt.Sprintf("%d", prNumber), "comments")
 
 	if err := c.Get(path, &response); err != nil {
 		return nil, fmt.Errorf("failed to list PR comments: %w", err)
@@ -46,7 +46,7 @@ func (c *Client) ListPRComments(owner, repo string, prNumber int) ([]Comment, er
 	for i, cr := range response {
 		comments[i] = Comment{
 			ID:          cr.ID,
-			Repository:  fmt.Sprintf("%s/%s", owner, repo),
+			Repository:  repoFullName(owner, repo),
 			PRNumber:    prNumber,
 			Author:      cr.User.Login,
 			Body:        cr.Body,

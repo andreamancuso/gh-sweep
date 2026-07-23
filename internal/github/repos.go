@@ -15,9 +15,9 @@ type Repository struct {
 }
 
 type repoListItemResponse struct {
-	Name          string `json:"name"`
-	FullName      string `json:"full_name"`
-	Owner         struct {
+	Name     string `json:"name"`
+	FullName string `json:"full_name"`
+	Owner    struct {
 		Login string `json:"login"`
 	} `json:"owner"`
 	Private       bool   `json:"private"`
@@ -32,7 +32,10 @@ func (c *Client) ListOrgRepositories(org string) ([]Repository, error) {
 
 	for {
 		var response []repoListItemResponse
-		path := fmt.Sprintf("orgs/%s/repos?per_page=%d&page=%d", org, perPage, page)
+		path := apiPathWithQuery(apiPath("orgs", org, "repos"), query(map[string]string{
+			"per_page": fmt.Sprintf("%d", perPage),
+			"page":     fmt.Sprintf("%d", page),
+		}))
 
 		if err := c.Get(path, &response); err != nil {
 			return nil, fmt.Errorf("failed to list org repos: %w", err)
@@ -69,7 +72,10 @@ func (c *Client) ListUserRepositories(username string) ([]Repository, error) {
 
 	for {
 		var response []repoListItemResponse
-		path := fmt.Sprintf("users/%s/repos?per_page=%d&page=%d", username, perPage, page)
+		path := apiPathWithQuery(apiPath("users", username, "repos"), query(map[string]string{
+			"per_page": fmt.Sprintf("%d", perPage),
+			"page":     fmt.Sprintf("%d", page),
+		}))
 
 		if err := c.Get(path, &response); err != nil {
 			return nil, fmt.Errorf("failed to list user repos: %w", err)

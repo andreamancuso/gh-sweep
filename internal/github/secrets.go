@@ -25,7 +25,7 @@ type secretsResponse struct {
 // ListOrgSecrets lists organization-level secrets
 func (c *Client) ListOrgSecrets(org string) ([]Secret, error) {
 	var response secretsResponse
-	path := fmt.Sprintf("orgs/%s/actions/secrets", org)
+	path := apiPath("orgs", org, "actions", "secrets")
 
 	if err := c.Get(path, &response); err != nil {
 		return nil, fmt.Errorf("failed to list org secrets: %w", err)
@@ -47,7 +47,7 @@ func (c *Client) ListOrgSecrets(org string) ([]Secret, error) {
 // ListRepoSecrets lists repository-level secrets
 func (c *Client) ListRepoSecrets(owner, repo string) ([]Secret, error) {
 	var response secretsResponse
-	path := fmt.Sprintf("repos/%s/%s/actions/secrets", owner, repo)
+	path := apiPath("repos", owner, repo, "actions", "secrets")
 
 	if err := c.Get(path, &response); err != nil {
 		return nil, fmt.Errorf("failed to list repo secrets: %w", err)
@@ -58,7 +58,7 @@ func (c *Client) ListRepoSecrets(owner, repo string) ([]Secret, error) {
 		secrets[i] = Secret{
 			Name:       s.Name,
 			Scope:      "repo",
-			Repository: fmt.Sprintf("%s/%s", owner, repo),
+			Repository: repoFullName(owner, repo),
 			CreatedAt:  s.CreatedAt,
 			UpdatedAt:  s.UpdatedAt,
 		}

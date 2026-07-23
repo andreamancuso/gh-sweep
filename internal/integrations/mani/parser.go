@@ -9,8 +9,8 @@ import (
 
 // Config represents a mani configuration
 type Config struct {
-	Projects []Project          `yaml:"projects"`
-	Tasks    map[string]Task    `yaml:"tasks"`
+	Projects []Project       `yaml:"projects"`
+	Tasks    map[string]Task `yaml:"tasks"`
 }
 
 // Project represents a mani project
@@ -29,7 +29,7 @@ type Task struct {
 
 // Parse parses a mani.yaml file
 func Parse(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- the caller explicitly supplies the mani config path to parse.
 	if err != nil {
 		return nil, fmt.Errorf("failed to read mani config: %w", err)
 	}

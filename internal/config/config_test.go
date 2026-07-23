@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -77,8 +78,12 @@ func TestSaveConfig(t *testing.T) {
 	}
 
 	// Verify file exists
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+	info, err := os.Stat(configPath)
+	if os.IsNotExist(err) {
 		t.Error("Config file was not created")
+	}
+	if err == nil && runtime.GOOS != "windows" && info.Mode().Perm() != 0600 {
+		t.Errorf("Expected config permissions 0600, got %v", info.Mode().Perm())
 	}
 
 	// Load it back

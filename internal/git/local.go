@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -37,10 +38,12 @@ func (r *LocalRepo) ListBranches() ([]BranchInfo, error) {
 	cmd.Dir = r.Path
 
 	var out bytes.Buffer
+	var stderr bytes.Buffer
 	cmd.Stdout = &out
+	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("failed to list branches: %w", err)
+		return nil, commandError("failed to list branches", err, stderr.String())
 	}
 
 	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
@@ -75,10 +78,12 @@ func (r *LocalRepo) GetCurrentBranch() (string, error) {
 	cmd.Dir = r.Path
 
 	var out bytes.Buffer
+	var stderr bytes.Buffer
 	cmd.Stdout = &out
+	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("failed to get current branch: %w", err)
+		return "", commandError("failed to get current branch", err, stderr.String())
 	}
 
 	return strings.TrimSpace(out.String()), nil
@@ -87,14 +92,16 @@ func (r *LocalRepo) GetCurrentBranch() (string, error) {
 // CompareBranches compares two branches and returns ahead/behind counts
 func (r *LocalRepo) CompareBranches(base, head string) (ahead, behind int, err error) {
 	// Run: git rev-list --left-right --count base...head
-	cmd := exec.Command("git", "rev-list", "--left-right", "--count", fmt.Sprintf("%s...%s", base, head))
+	cmd := exec.Command("git", "rev-list", "--left-right", "--count", fmt.Sprintf("%s...%s", base, head)) // #nosec G204 -- arguments are passed directly to git without shell expansion.
 	cmd.Dir = r.Path
 
 	var out bytes.Buffer
+	var stderr bytes.Buffer
 	cmd.Stdout = &out
+	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return 0, 0, fmt.Errorf("failed to compare branches: %w", err)
+		return 0, 0, commandError("failed to compare branches", err, stderr.String())
 	}
 
 	// Output format: "behind\tahead\n"
@@ -103,9 +110,14 @@ func (r *LocalRepo) CompareBranches(base, head string) (ahead, behind int, err e
 		return 0, 0, fmt.Errorf("unexpected git output: %s", out.String())
 	}
 
-	// Parse counts
-	fmt.Sscanf(parts[0], "%d", &behind)
-	fmt.Sscanf(parts[1], "%d", &ahead)
+	behind, err = strconv.Atoi(parts[0])
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to parse behind count %q: %w", parts[0], err)
+	}
+	ahead, err = strconv.Atoi(parts[1])
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to parse ahead count %q: %w", parts[1], err)
+	}
 
 	return ahead, behind, nil
 }
@@ -118,13 +130,15 @@ func (r *LocalRepo) DeleteBranch(branch string, force bool) error {
 	} else {
 		args = append(args, "-d")
 	}
-	args = append(args, branch)
+	args = append(args, "--", branch)
 
 	cmd := exec.Command("git", args...)
 	cmd.Dir = r.Path
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to delete branch %s: %w", branch, err)
+		return commandError(fmt.Sprintf("failed to delete branch %s", branch), err, stderr.String())
 	}
 
 	return nil
@@ -132,14 +146,16 @@ func (r *LocalRepo) DeleteBranch(branch string, force bool) error {
 
 // GetMergeBase returns the merge base of two branches
 func (r *LocalRepo) GetMergeBase(branch1, branch2 string) (string, error) {
-	cmd := exec.Command("git", "merge-base", branch1, branch2)
+	cmd := exec.Command("git", "merge-base", branch1, branch2) // #nosec G204 -- arguments are passed directly to git without shell expansion.
 	cmd.Dir = r.Path
 
 	var out bytes.Buffer
+	var stderr bytes.Buffer
 	cmd.Stdout = &out
+	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("failed to get merge base: %w", err)
+		return "", commandError("failed to get merge base", err, stderr.String())
 	}
 
 	return strings.TrimSpace(out.String()), nil
@@ -192,4 +208,12 @@ func (r *LocalRepo) IsInsideWorkTree() bool {
 	cmd.Dir = r.Path
 
 	return cmd.Run() == nil
+}
+
+func commandError(message string, err error, stderr string) error {
+	stderr = strings.TrimSpace(stderr)
+	if stderr == "" {
+		return fmt.Errorf("%s: %w", message, err)
+	}
+	return fmt.Errorf("%s: %w: %s", message, err, stderr)
 }

@@ -24,7 +24,7 @@ type webhookResponse struct {
 // ListWebhooks lists all webhooks for a repository
 func (c *Client) ListWebhooks(owner, repo string) ([]Webhook, error) {
 	var response []webhookResponse
-	path := fmt.Sprintf("repos/%s/%s/hooks", owner, repo)
+	path := apiPath("repos", owner, repo, "hooks")
 
 	if err := c.Get(path, &response); err != nil {
 		return nil, fmt.Errorf("failed to list webhooks: %w", err)
@@ -34,7 +34,7 @@ func (c *Client) ListWebhooks(owner, repo string) ([]Webhook, error) {
 	for i, w := range response {
 		webhooks[i] = Webhook{
 			ID:         w.ID,
-			Repository: fmt.Sprintf("%s/%s", owner, repo),
+			Repository: repoFullName(owner, repo),
 			URL:        w.Config.URL,
 			Events:     w.Events,
 			Active:     w.Active,
@@ -45,7 +45,7 @@ func (c *Client) ListWebhooks(owner, repo string) ([]Webhook, error) {
 }
 
 // WebhookDelivery represents a webhook delivery
-type WebhookDelivery struct{
+type WebhookDelivery struct {
 	ID        int
 	Event     string
 	Status    int
@@ -54,17 +54,17 @@ type WebhookDelivery struct{
 }
 
 type deliveryResponse struct {
-	ID       int    `json:"id"`
-	Event    string `json:"event"`
-	Status   int    `json:"status_code"`
-	Duration int    `json:"duration"`
+	ID        int    `json:"id"`
+	Event     string `json:"event"`
+	Status    int    `json:"status_code"`
+	Duration  int    `json:"duration"`
 	Delivered string `json:"delivered_at"`
 }
 
 // ListWebhookDeliveries lists recent deliveries for a webhook
 func (c *Client) ListWebhookDeliveries(owner, repo string, hookID int) ([]WebhookDelivery, error) {
 	var response []deliveryResponse
-	path := fmt.Sprintf("repos/%s/%s/hooks/%d/deliveries", owner, repo, hookID)
+	path := apiPath("repos", owner, repo, "hooks", fmt.Sprintf("%d", hookID), "deliveries")
 
 	if err := c.Get(path, &response); err != nil {
 		return nil, fmt.Errorf("failed to list webhook deliveries: %w", err)

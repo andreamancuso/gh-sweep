@@ -40,14 +40,14 @@ type protectionResponse struct {
 // GetBranchProtection retrieves branch protection rules
 func (c *Client) GetBranchProtection(owner, repo, branch string) (*ProtectionRule, error) {
 	var response protectionResponse
-	path := fmt.Sprintf("repos/%s/%s/branches/%s/protection", owner, repo, branch)
+	path := apiPath("repos", owner, repo, "branches", branch, "protection")
 
 	if err := c.Get(path, &response); err != nil {
 		return nil, fmt.Errorf("failed to get branch protection: %w", err)
 	}
 
 	rule := &ProtectionRule{
-		Repository:           fmt.Sprintf("%s/%s", owner, repo),
+		Repository:           repoFullName(owner, repo),
 		Branch:               branch,
 		EnforceAdmins:        response.EnforceAdmins.Enabled,
 		RequireLinearHistory: response.RequireLinearHistory.Enabled,
