@@ -6,7 +6,7 @@
 ## Features
 
 ### 1.1 Interactive Branch Management
-Port the Python Rich CLI interactive branch management from [dotfiles PR#5](https://github.com/KyleKing/dotfiles/pull/5) to Go TUI.
+Implement interactive branch management as a Go TUI.
 
 **Capabilities:**
 - Category-level actions: batch delete, skip, or review individual branches

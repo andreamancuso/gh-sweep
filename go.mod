@@ -1,4 +1,4 @@
-module github.com/KyleKing/gh-sweep
+module github.com/andreamancuso/gh-sweep
 
 go 1.25.0
 

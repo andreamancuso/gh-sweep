@@ -5,24 +5,24 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/KyleKing/gh-sweep/internal/git"
-	"github.com/KyleKing/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/git"
+	"github.com/andreamancuso/gh-sweep/internal/github"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 // Model represents the branch management TUI state
 type Model struct {
-	repo         string
-	branches     []github.BranchWithComparison
-	selected     map[int]bool
-	cursor       int
-	width        int
-	height       int
-	loading      bool
-	err          error
-	baseBranch   string
-	showTree     bool
+	repo       string
+	branches   []github.BranchWithComparison
+	selected   map[int]bool
+	cursor     int
+	width      int
+	height     int
+	loading    bool
+	err        error
+	baseBranch string
+	showTree   bool
 }
 
 // NewModel creates a new branch management model

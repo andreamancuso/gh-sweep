@@ -5,24 +5,24 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/KyleKing/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/github"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 // Model represents the secrets audit TUI state
 type Model struct {
-	org        string
-	repos      []string
-	orgSecrets []github.Secret
-	repoSecrets map[string][]github.Secret
+	org           string
+	repos         []string
+	orgSecrets    []github.Secret
+	repoSecrets   map[string][]github.Secret
 	unusedSecrets []string
-	cursor     int
-	width      int
-	height     int
-	loading    bool
-	err        error
-	viewMode   string // "org", "repo", "unused"
+	cursor        int
+	width         int
+	height        int
+	loading       bool
+	err           error
+	viewMode      string // "org", "repo", "unused"
 }
 
 // NewModel creates a new secrets audit model

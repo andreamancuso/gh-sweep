@@ -9,9 +9,9 @@ import (
 // TestAnalyzeWorkflowRuns tests workflow run statistics
 func TestAnalyzeWorkflowRuns(t *testing.T) {
 	tests := []struct {
-		name            string
-		runs            []WorkflowRun
-		expectedSuccess float64
+		name             string
+		runs             []WorkflowRun
+		expectedSuccess  float64
 		expectedFailures int
 	}{
 		{
@@ -35,8 +35,8 @@ func TestAnalyzeWorkflowRuns(t *testing.T) {
 			expectedFailures: 2,
 		},
 		{
-			name:            "empty runs",
-			runs:            []WorkflowRun{},
+			name:             "empty runs",
+			runs:             []WorkflowRun{},
 			expectedSuccess:  0.0,
 			expectedFailures: 0,
 		},
@@ -69,10 +69,10 @@ func TestDetectFlakyTests(t *testing.T) {
 	now := time.Now()
 
 	tests := []struct {
-		name          string
-		runs          []TestRun
-		config        FlakyDetectionConfig
-		expectFlaky   bool
+		name            string
+		runs            []TestRun
+		config          FlakyDetectionConfig
+		expectFlaky     bool
 		expectedPattern string
 	}{
 		{
@@ -96,7 +96,7 @@ func TestDetectFlakyTests(t *testing.T) {
 				MinFailureRate: 0.1,
 				TimeWindow:     7 * 24 * time.Hour,
 			},
-			expectFlaky:   true,
+			expectFlaky:     true,
 			expectedPattern: "same-commit-flip",
 		},
 		{
@@ -108,8 +108,8 @@ func TestDetectFlakyTests(t *testing.T) {
 				{Name: "TestBar", Status: "failure", CommitSHA: "d", Timestamp: now.Add(-2 * time.Hour)},
 				{Name: "TestBar", Status: "success", CommitSHA: "e", Timestamp: now.Add(-1 * time.Hour)},
 			},
-			config:        DefaultFlakyConfig(),
-			expectFlaky:   true,
+			config:          DefaultFlakyConfig(),
+			expectFlaky:     true,
 			expectedPattern: "intermittent",
 		},
 		{
@@ -119,8 +119,8 @@ func TestDetectFlakyTests(t *testing.T) {
 				{Name: "TestBaz", Status: "failure", CommitSHA: "b", Timestamp: now.Add(-2 * time.Hour)},
 				{Name: "TestBaz", Status: "failure", CommitSHA: "c", Timestamp: now.Add(-1 * time.Hour)},
 			},
-			config:        DefaultFlakyConfig(),
-			expectFlaky:   false, // Too consistent, not flaky
+			config:      DefaultFlakyConfig(),
+			expectFlaky: false, // Too consistent, not flaky
 		},
 		{
 			name: "not enough flips",

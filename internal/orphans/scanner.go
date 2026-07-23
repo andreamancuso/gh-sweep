@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/KyleKing/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/github"
 )
 
 type NamespaceScanner struct {

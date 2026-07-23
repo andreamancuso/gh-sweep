@@ -8,7 +8,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/KyleKing/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/github"
 )
 
 type GHAPerfCache struct {

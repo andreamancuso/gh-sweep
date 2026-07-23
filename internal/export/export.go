@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/KyleKing/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/github"
 )
 
 // ExportFormat represents the export format

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/KyleKing/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/github"
 )
 
 func TestParseAgeDuration(t *testing.T) {

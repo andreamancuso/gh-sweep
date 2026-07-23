@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/KyleKing/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/github"
 )
 
 func TestDetector_ClassifyBranch_MergedPR(t *testing.T) {

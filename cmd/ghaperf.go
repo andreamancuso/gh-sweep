@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KyleKing/gh-sweep/internal/cache"
-	"github.com/KyleKing/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/cache"
+	"github.com/andreamancuso/gh-sweep/internal/github"
 	"github.com/spf13/cobra"
 )
 

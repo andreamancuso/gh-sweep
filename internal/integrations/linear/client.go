@@ -42,8 +42,8 @@ type graphQLRequest struct {
 
 // graphQLResponse represents a GraphQL response
 type graphQLResponse struct {
-	Data   json.RawMessage        `json:"data"`
-	Errors []graphQLError         `json:"errors,omitempty"`
+	Data   json.RawMessage `json:"data"`
+	Errors []graphQLError  `json:"errors,omitempty"`
 }
 
 type graphQLError struct {

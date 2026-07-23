@@ -93,12 +93,12 @@ query IssueDetails {
 projects:
   - name: gh-sweep
     path: ~/code/gh-sweep
-    url: https://github.com/KyleKing/gh-sweep
+    url: https://github.com/andreamancuso/gh-sweep
     tags: [go, tui]
 
-  - name: yak-shears
-    path: ~/code/yak-shears
-    url: https://github.com/KyleKing/yak-shears
+  - name: helper-cli
+    path: ~/code/helper-cli
+    url: https://github.com/example/helper-cli
     tags: [python, cli]
 
 tasks:

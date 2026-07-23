@@ -1,5 +1,7 @@
 # gh-sweep 🧹
 
+This project is an MIT-licensed fork of [Kyle King's original gh-sweep project](https://github.com/KyleKing/gh-sweep).
+
 > A powerful Terminal User Interface (TUI) for GitHub repository management, built with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 **gh-sweep** helps you manage multiple GitHub repositories interactively from your terminal. It fills gaps in the GitHub ecosystem by providing cross-repo visibility, bulk operations, and intelligent analysis.
@@ -45,7 +47,7 @@ See [anti-phases.md](.phases/anti-phases.md) for what we don't do and recommende
 
 ### From Source (Development)
 ```bash
-git clone https://github.com/KyleKing/gh-sweep.git
+git clone https://github.com/andreamancuso/gh-sweep.git
 cd gh-sweep
 
 # Using mise (recommended)
@@ -58,13 +60,11 @@ go build -o gh-sweep
 
 ### Using Go Install
 ```bash
-go install github.com/KyleKing/gh-sweep@latest
+go install github.com/andreamancuso/gh-sweep@latest
 ```
 
-### Homebrew (Coming Soon)
-```bash
-brew install KyleKing/tap/gh-sweep
-```
+### Homebrew
+No Homebrew tap is currently published for this fork.
 
 ## Quick Start
 
@@ -247,7 +247,7 @@ Deletion operations are irreversible. Artifacts, caches, and workflow runs are p
 ### Setup
 ```bash
 # Clone repository
-git clone https://github.com/KyleKing/gh-sweep.git
+git clone https://github.com/andreamancuso/gh-sweep.git
 cd gh-sweep
 
 # Install dependencies
@@ -332,7 +332,7 @@ See [anti-phases.md](.phases/anti-phases.md) for detailed comparison and usage g
 
 Each tool serves a distinct purpose - choose based on your workflow:
 
-#### [gh-sweep](https://github.com/KyleKing/gh-sweep) (this tool)
+#### [gh-sweep](https://github.com/andreamancuso/gh-sweep) (this tool)
 **Niche:** Cross-repository management & settings sync
 **Best for:** DevOps teams managing 10+ repos needing consistency
 **Key Features:**
@@ -434,4 +434,3 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 - Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) by Charm
 - Inspired by [gh-dash](https://github.com/dlvhdr/gh-dash)
-- Python Rich CLI reference: [dotfiles PR#5](https://github.com/KyleKing/dotfiles/pull/5)

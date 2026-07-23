@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KyleKing/gh-sweep/internal/github"
-	storagetui "github.com/KyleKing/gh-sweep/internal/tui/components/storage"
+	"github.com/andreamancuso/gh-sweep/internal/github"
+	storagetui "github.com/andreamancuso/gh-sweep/internal/tui/components/storage"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )

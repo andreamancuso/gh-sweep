@@ -9,9 +9,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/KyleKing/gh-sweep/internal/github"
-	"github.com/KyleKing/gh-sweep/internal/orphans"
-	orphanstui "github.com/KyleKing/gh-sweep/internal/tui/components/orphans"
+	"github.com/andreamancuso/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/orphans"
+	orphanstui "github.com/andreamancuso/gh-sweep/internal/tui/components/orphans"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )

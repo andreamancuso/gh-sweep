@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/KyleKing/gh-sweep/internal/github"
-	"github.com/KyleKing/gh-sweep/internal/orphans"
+	"github.com/andreamancuso/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/orphans"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -21,24 +21,24 @@ const (
 )
 
 type Model struct {
-	namespace      string
-	options        orphans.ScanOptions
-	result         *orphans.NamespaceScanResult
-	viewMode       ViewMode
-	cursor         int
-	selected       map[string]bool
-	filterType     *orphans.OrphanType
-	loading        bool
-	scanning       string
-	progress       int
-	total          int
-	orphansFound   int
-	statusMsg      string
-	err            error
-	width          int
-	height         int
-	confirmDelete  bool
-	deleteTargets  []orphans.OrphanedBranch
+	namespace     string
+	options       orphans.ScanOptions
+	result        *orphans.NamespaceScanResult
+	viewMode      ViewMode
+	cursor        int
+	selected      map[string]bool
+	filterType    *orphans.OrphanType
+	loading       bool
+	scanning      string
+	progress      int
+	total         int
+	orphansFound  int
+	statusMsg     string
+	err           error
+	width         int
+	height        int
+	confirmDelete bool
+	deleteTargets []orphans.OrphanedBranch
 }
 
 func NewModel(namespace string, options orphans.ScanOptions) Model {

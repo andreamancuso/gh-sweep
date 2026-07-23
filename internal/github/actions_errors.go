@@ -35,22 +35,22 @@ type ErrorContext struct {
 
 // LogExtractionConfig configures log extraction behavior
 type LogExtractionConfig struct {
-	TailLines       int      // Number of lines from end of log
-	ContextLines    int      // Additional context lines around errors
-	FilterNoise     bool     // Remove timestamps, ANSI codes
-	ExtractStackTrace bool   // Include full stack traces
-	IncludeSuccess  bool     // Include successful runs
-	ErrorPatterns   []string // Custom regex patterns for errors
+	TailLines         int      // Number of lines from end of log
+	ContextLines      int      // Additional context lines around errors
+	FilterNoise       bool     // Remove timestamps, ANSI codes
+	ExtractStackTrace bool     // Include full stack traces
+	IncludeSuccess    bool     // Include successful runs
+	ErrorPatterns     []string // Custom regex patterns for errors
 }
 
 // DefaultLogConfig returns sensible defaults for log extraction
 func DefaultLogConfig() LogExtractionConfig {
 	return LogExtractionConfig{
-		TailLines:       100,
-		ContextLines:    5,
-		FilterNoise:     true,
+		TailLines:         100,
+		ContextLines:      5,
+		FilterNoise:       true,
 		ExtractStackTrace: false, // Usually too verbose
-		IncludeSuccess:  false,
+		IncludeSuccess:    false,
 		ErrorPatterns: []string{
 			`(?i)error:`,
 			`(?i)failed:`,

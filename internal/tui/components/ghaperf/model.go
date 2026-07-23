@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KyleKing/gh-sweep/internal/cache"
-	"github.com/KyleKing/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/cache"
+	"github.com/andreamancuso/gh-sweep/internal/github"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -60,14 +60,14 @@ func NewModel(repo string, opts ...Option) Model {
 	}
 
 	m := Model{
-		repo:        repo,
-		owner:       owner,
-		repoName:    repoName,
-		loading:     true,
-		viewMode:    viewOverview,
-		filterDays:  30,
-		baseBranch:  "main",
-		maxVisible:  15,
+		repo:       repo,
+		owner:      owner,
+		repoName:   repoName,
+		loading:    true,
+		viewMode:   viewOverview,
+		filterDays: 30,
+		baseBranch: "main",
+		maxVisible: 15,
 	}
 
 	for _, opt := range opts {

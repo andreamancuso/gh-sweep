@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/KyleKing/gh-sweep/cmd"
+	"github.com/andreamancuso/gh-sweep/cmd"
 )
 
 func main() {
