@@ -138,6 +138,8 @@ When the full TUI is launched without `--repo`, the first configured repository 
 
 Multi-repo views show a repository-selection screen before calling GitHub. Use `space` to toggle one repo, `a` to select all, `n` to select none, and `enter` to load the selected repos.
 
+Single-repository views such as Branch Management show a scrollable repository chooser. Move to one repository and press `enter` to load it.
+
 Example:
 
 ```yaml

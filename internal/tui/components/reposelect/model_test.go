@@ -145,3 +145,44 @@ func TestViewWindowsLongRepoListWithoutTerminalSize(t *testing.T) {
 		t.Fatalf("expected page-down to show lower repos, got:\n%s", view)
 	}
 }
+
+func TestSingleSelectionChoosesOneRepository(t *testing.T) {
+	m := New(
+		"Choose repo",
+		[]string{"owner/repo1", "owner/repo2", "owner/repo3"},
+		WithSingleSelection("owner/repo2"),
+	)
+
+	if selected := m.Selected(); len(selected) != 1 || selected[0] != "owner/repo2" {
+		t.Fatalf("expected configured default repo, got %v", selected)
+	}
+
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	_, result := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if !result.Confirmed {
+		t.Fatal("expected single repository confirmation")
+	}
+	if len(result.Selected) != 1 || result.Selected[0] != "owner/repo3" {
+		t.Fatalf("expected cursor repository, got %v", result.Selected)
+	}
+}
+
+func TestSingleSelectionViewUsesSingleRepoHelp(t *testing.T) {
+	m := New(
+		"Choose repo",
+		[]string{"owner/repo1", "owner/repo2"},
+		WithSingleSelection("owner/repo1"),
+	)
+
+	view := m.View()
+	for _, want := range []string{"Choose one", "enter: choose repository"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("expected single-selection view to contain %q, got:\n%s", want, view)
+		}
+	}
+	for _, unwanted := range []string{"a: select all", "n: select none", "space: toggle"} {
+		if strings.Contains(view, unwanted) {
+			t.Fatalf("did not expect single-selection view to contain %q, got:\n%s", unwanted, view)
+		}
+	}
+}

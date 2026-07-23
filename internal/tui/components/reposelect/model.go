@@ -24,6 +24,8 @@ type Model struct {
 	width    int
 	height   int
 	status   string
+	single   bool
+	initial  string
 }
 
 type Option func(*Model)
@@ -33,6 +35,13 @@ const defaultVisibleRepoCount = 12
 func WithSubtitle(subtitle string) Option {
 	return func(m *Model) {
 		m.subtitle = subtitle
+	}
+}
+
+func WithSingleSelection(initial string) Option {
+	return func(m *Model) {
+		m.single = true
+		m.initial = initial
 	}
 }
 
@@ -49,6 +58,10 @@ func New(title string, repos []string, opts ...Option) Model {
 	}
 	for _, opt := range opts {
 		opt(&m)
+	}
+	if m.single {
+		m.cursor = indexOfRepo(m.repos, m.initial)
+		m.selected = make(map[int]bool)
 	}
 
 	return m
@@ -99,17 +112,23 @@ func (m Model) Update(msg tea.KeyMsg) (Model, Result) {
 		}
 
 	case " ":
-		if m.cursor < len(m.repos) {
+		if !m.single && m.cursor < len(m.repos) {
 			m.selected[m.cursor] = !m.selected[m.cursor]
 		}
 
 	case "a":
+		if m.single {
+			break
+		}
 		for i := range m.repos {
 			m.selected[i] = true
 		}
 		m.status = "Selected all repositories."
 
 	case "n":
+		if m.single {
+			break
+		}
 		m.selected = make(map[int]bool)
 		m.status = "Cleared repository selection."
 
@@ -127,6 +146,13 @@ func (m Model) Update(msg tea.KeyMsg) (Model, Result) {
 }
 
 func (m Model) Selected() []string {
+	if m.single {
+		if m.cursor >= 0 && m.cursor < len(m.repos) {
+			return []string{m.repos[m.cursor]}
+		}
+		return nil
+	}
+
 	repos := make([]string, 0, len(m.repos))
 	for i, repo := range m.repos {
 		if m.selected[i] {
@@ -152,7 +178,11 @@ func (m Model) View() string {
 		b.WriteString("\n")
 	}
 
-	b.WriteString(fmt.Sprintf("Configured repositories: %d | Selected: %d\n", len(m.repos), len(m.Selected())))
+	if m.single {
+		b.WriteString(fmt.Sprintf("Configured repositories: %d | Choose one\n", len(m.repos)))
+	} else {
+		b.WriteString(fmt.Sprintf("Configured repositories: %d | Selected: %d\n", len(m.repos), len(m.Selected())))
+	}
 	b.WriteString("No GitHub calls run until you press Enter.\n\n")
 
 	if len(m.repos) == 0 {
@@ -171,17 +201,20 @@ func (m Model) View() string {
 				cursor = ">"
 			}
 
-			selectMark := " "
-			if m.selected[i] {
-				selectMark = "x"
-			}
-
 			lineStyle := lipgloss.NewStyle()
 			if m.cursor == i {
 				lineStyle = lineStyle.Bold(true).Foreground(lipgloss.Color("#FFFF00"))
 			}
 
-			b.WriteString(lineStyle.Render(fmt.Sprintf("%s [%s] %s", cursor, selectMark, repo)))
+			if m.single {
+				b.WriteString(lineStyle.Render(fmt.Sprintf("%s %s", cursor, repo)))
+			} else {
+				selectMark := " "
+				if m.selected[i] {
+					selectMark = "x"
+				}
+				b.WriteString(lineStyle.Render(fmt.Sprintf("%s [%s] %s", cursor, selectMark, repo)))
+			}
 			b.WriteString("\n")
 		}
 
@@ -198,9 +231,22 @@ func (m Model) View() string {
 	}
 
 	b.WriteString("\n")
-	b.WriteString(helpStyle.Render("j/k: navigate | pgup/pgdown: page | space: toggle | a: select all | n: select none | enter: load selected | esc: back | q: quit"))
+	if m.single {
+		b.WriteString(helpStyle.Render("j/k: navigate | pgup/pgdown: page | enter: choose repository | esc: back | q: quit"))
+	} else {
+		b.WriteString(helpStyle.Render("j/k: navigate | pgup/pgdown: page | space: toggle | a: select all | n: select none | enter: load selected | esc: back | q: quit"))
+	}
 
 	return b.String()
+}
+
+func indexOfRepo(repos []string, target string) int {
+	for i, repo := range repos {
+		if repo == target {
+			return i
+		}
+	}
+	return 0
 }
 
 func (m Model) visibleRange() (int, int) {

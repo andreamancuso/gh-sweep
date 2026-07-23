@@ -65,19 +65,24 @@ type MainModel struct {
 	webhooksModel      webhooks.Model
 
 	// Configuration
-	repo     string
-	repos    []string
-	baseline string
-	org      string
+	repo       string
+	repos      []string
+	baseline   string
+	branchBase string
+	org        string
 }
 
 // NewMainModel creates a new main TUI model
 func NewMainModel(repo string, cfg *config.Config) MainModel {
 	repos := []string{}
 	org := ""
+	branchBase := "main"
 	if cfg != nil {
 		repos = cfg.Repositories
 		org = cfg.DefaultOrg
+		if cfg.Branches.DefaultBranch != "" {
+			branchBase = cfg.Branches.DefaultBranch
+		}
 	}
 	if repo == "" && len(repos) > 0 {
 		repo = repos[0]
@@ -88,12 +93,13 @@ func NewMainModel(repo string, cfg *config.Config) MainModel {
 	}
 
 	return MainModel{
-		ready:    false,
-		mode:     ViewHome,
-		repo:     repo,
-		repos:    repos,
-		baseline: baseline,
-		org:      org,
+		ready:      false,
+		mode:       ViewHome,
+		repo:       repo,
+		repos:      repos,
+		baseline:   baseline,
+		branchBase: branchBase,
+		org:        org,
 	}
 }
 
@@ -164,9 +170,9 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.watchingModel.Init()
 
 			case "1":
-				m.mode = ViewBranches
-				if m.repo != "" {
-					m.branchesModel = branches.NewModel(m.repo, "main")
+				if m.repo != "" || len(m.repos) > 0 {
+					m.mode = ViewBranches
+					m.branchesModel = branches.NewModel(m.repos, m.repo, m.branchBase)
 					m.branchesModel = m.applyCurrentSize(m.branchesModel).(branches.Model)
 					return m, m.branchesModel.Init()
 				}

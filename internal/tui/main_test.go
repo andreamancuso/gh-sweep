@@ -136,3 +136,31 @@ func TestMainModelForwardsAsyncMessagesToActiveView(t *testing.T) {
 		t.Fatalf("expected completed Watch Status view, got:\n%s", view)
 	}
 }
+
+func TestMainModelOpensBranchRepositoryChooser(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Repositories = []string{
+		"andreamancuso/bt-browser",
+		"andreamancuso/gh-sweep",
+	}
+
+	model, _ := NewMainModel("", cfg).Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m := model.(MainModel)
+	model, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("1")})
+	m = model.(MainModel)
+
+	if cmd != nil {
+		t.Fatal("expected no branch loading before repository confirmation")
+	}
+	view := m.View()
+	for _, want := range []string{
+		"Branch Management: Select Repository",
+		"andreamancuso/bt-browser",
+		"andreamancuso/gh-sweep",
+		"enter: choose repository",
+	} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("expected branch repository chooser to contain %q, got:\n%s", want, view)
+		}
+	}
+}

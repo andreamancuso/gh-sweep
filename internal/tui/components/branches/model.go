@@ -7,6 +7,7 @@ import (
 
 	"github.com/andreamancuso/gh-sweep/internal/git"
 	"github.com/andreamancuso/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/tui/components/reposelect"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -23,15 +24,24 @@ type Model struct {
 	err        error
 	baseBranch string
 	showTree   bool
+	selecting  bool
+	selector   reposelect.Model
 }
 
 // NewModel creates a new branch management model
-func NewModel(repo, baseBranch string) Model {
+func NewModel(repos []string, defaultRepo, baseBranch string) Model {
+	repos = withDefaultRepo(repos, defaultRepo)
+
 	return Model{
-		repo:       repo,
+		repo:       defaultRepo,
 		baseBranch: baseBranch,
 		selected:   make(map[int]bool),
-		loading:    true,
+		selecting:  true,
+		selector: reposelect.New(
+			"Branch Management: Select Repository",
+			repos,
+			reposelect.WithSingleSelection(defaultRepo),
+		),
 	}
 }
 
@@ -42,6 +52,9 @@ type branchesLoadedMsg struct {
 
 // Init initializes the model
 func (m Model) Init() tea.Cmd {
+	if m.selecting {
+		return nil
+	}
 	return m.loadBranches
 }
 
@@ -117,6 +130,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.selector = m.selector.SetSize(msg.Width, msg.Height)
 		return m, nil
 
 	case branchesLoadedMsg:
@@ -126,6 +140,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.selecting {
+			return m.updateRepoSelection(msg)
+		}
+
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
@@ -163,10 +181,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) updateRepoSelection(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	var result reposelect.Result
+	m.selector, result = m.selector.Update(msg)
+	if result.Quit {
+		return m, tea.Quit
+	}
+	if result.Confirmed {
+		m.repo = result.Selected[0]
+		m.selecting = false
+		m.loading = true
+		m.err = nil
+		m.branches = nil
+		m.cursor = 0
+		m.selected = make(map[int]bool)
+		return m, m.loadBranches
+	}
+
+	return m, nil
+}
+
 // View renders the model
 func (m Model) View() string {
+	if m.selecting {
+		return m.selector.View()
+	}
+
 	if m.loading {
-		return "Loading branches...\n"
+		return fmt.Sprintf("Loading branches for %s...\n", m.repo)
 	}
 
 	if m.err != nil {
@@ -225,6 +267,25 @@ func (m Model) View() string {
 	b.WriteString(helpStyle.Render("↑/↓: navigate | space: select | a: all | n: none | t: tree | d: delete | q: quit"))
 
 	return b.String()
+}
+
+func withDefaultRepo(repos []string, defaultRepo string) []string {
+	result := make([]string, 0, len(repos)+1)
+	seen := make(map[string]bool, len(repos)+1)
+
+	if defaultRepo != "" {
+		result = append(result, defaultRepo)
+		seen[defaultRepo] = true
+	}
+	for _, repo := range repos {
+		if repo == "" || seen[repo] {
+			continue
+		}
+		result = append(result, repo)
+		seen[repo] = true
+	}
+
+	return result
 }
 
 // GetLocalBranches loads branches from local Git repository
