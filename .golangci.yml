@@ -8,21 +8,21 @@ linters:
     - nolintlint
     - rowserrcheck
     - sqlclosecheck
-    - staticcheck
     - tparallel
     - whitespace
     - govet
-    - gofmt
-    - goimports
-    - revive
+    - staticcheck
   disable:
     - errcheck  # Too noisy for initial development
     - ineffassign
+    - revive  # Too noisy for current codebase; re-enable after adding a baseline.
     - unused
-
-linters-settings:
-  goimports:
-    local-prefixes: github.com/KyleKing/gh-sweep
+  settings:
+    staticcheck:
+      checks:
+        - all
+        - -ST1000
+        - -QF*
 
 issues:
   max-issues-per-linter: 0

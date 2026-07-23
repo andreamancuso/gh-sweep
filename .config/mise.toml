@@ -6,7 +6,7 @@ _.file = ".env"
 MISE_ENV = "dev"
 
 [tools]
-go = "1.21"
+go = "1.25.0"
 golangci-lint = "latest"
 
 [settings]
@@ -18,8 +18,15 @@ run = "go run ."
 
 [tasks.build]
 description = "Build production binary"
-run = "go build -ldflags '-X github.com/KyleKing/gh-sweep/cmd.version={{.VERSION}} -X github.com/KyleKing/gh-sweep/cmd.commit={{.COMMIT}} -X github.com/KyleKing/gh-sweep/cmd.date={{.DATE}}' -o dist/gh-sweep"
 env = { VERSION = "0.1.0", COMMIT = "dev", DATE = "2024-01-01" }
+run = [
+    "mkdir -p dist",
+    "go build -ldflags \"-X github.com/andreamancuso/gh-sweep/cmd.version=$VERSION -X github.com/andreamancuso/gh-sweep/cmd.commit=$COMMIT -X github.com/andreamancuso/gh-sweep/cmd.date=$DATE\" -o dist/gh-sweep",
+]
+run_windows = [
+    "if not exist dist mkdir dist",
+    "go build -ldflags \"-X github.com/andreamancuso/gh-sweep/cmd.version=%VERSION% -X github.com/andreamancuso/gh-sweep/cmd.commit=%COMMIT% -X github.com/andreamancuso/gh-sweep/cmd.date=%DATE%\" -o dist/gh-sweep.exe",
+]
 
 [tasks.test]
 description = "Run tests"
@@ -38,8 +45,8 @@ description = "Run linters and fix issues"
 run = "golangci-lint run --path-prefix=. --config=.golangci.yml --timeout=5m --fix"
 
 [tasks.format]
-description = "Format code with gofumpt"
-run = "gofumpt -w $(find . -name '*.go' -not -path './vendor/*')"
+description = "Format Go code"
+run = "go fmt ./..."
 
 [tasks.tidy]
 description = "Run go mod tidy"
