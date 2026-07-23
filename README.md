@@ -2,435 +2,147 @@
 
 This project is an MIT-licensed fork of [Kyle King's original gh-sweep project](https://github.com/KyleKing/gh-sweep).
 
-> A powerful Terminal User Interface (TUI) for GitHub repository management, built with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
+`gh-sweep` is a local Go TUI/CLI for inspecting and cleaning up GitHub repository maintenance clutter, with a strong focus on GitHub Actions storage: artifacts, caches, workflow runs/logs, releases/assets, packages, and repo git size.
 
-**gh-sweep** helps you manage multiple GitHub repositories interactively from your terminal. It fills gaps in the GitHub ecosystem by providing cross-repo visibility, bulk operations, and intelligent analysis.
+It runs from your machine. It does not rely on GitHub Actions being available, which matters when Actions are blocked because storage quota is exhausted.
 
-## Features
+## Install
 
-### Storage Cleanup
-- **🧹 GitHub Actions Storage Cleanup**: Inspect repo git size, Actions artifacts, Actions caches, workflow run logs, releases/assets, and linked packages
-- **Preview-first deletion**: Delete Actions artifacts, caches, and failed/cancelled workflow runs with dry-run previews and typed confirmation
-- **Local recovery path**: Cleanup runs from your laptop and does not depend on GitHub Actions being available
-
-### Core Features (Phase 1)
-- **🌳 Interactive Branch Management**: Visualize branch relationships, create stacked PRs, batch delete with dependency analysis
-- **🛡️ Branch Protection Rules**: Compare and sync protection rules across repositories
-- **💬 Unresolved PR Comments**: Search, filter, and review unresolved comments with advanced filters and caching
-
-### Coming Soon
-- **⚡ GitHub Actions Analytics**: Performance trends, flaky test detection, error log extraction (Phase 2)
-- **⚙️ Cross-Repo Settings**: Visual diff and sync of repository settings (Phase 2)
-- **🔗 Webhook Management**: Org-wide overview and debugging (Phase 2)
-- **👥 Collaborator Management**: Time-boxed access grants for contractors/trials (Phase 3)
-- **🔐 Secrets Audit**: Visibility into secrets usage and compliance (Phase 3)
-- **📦 Release Overview**: Multi-repo release dashboard and version comparison (Phase 3)
-- **🔌 Integrations**: Linear, mani, ghq, and other local git tools (Phase 4)
-- **📊 Analytics**: CI runs, AI reviews, comment stats, contributor metrics (Phase 5)
-
-## Why gh-sweep?
-
-**Fills Real Gaps:**
-- ✅ No interactive TUI exists for branch protection management
-- ✅ No TUI for unresolved PR comment review with advanced filtering
-- ✅ No tool bridges GitHub Actions metadata with AI-friendly error extraction
-- ✅ Cross-repo settings comparison is CLI-only elsewhere
-
-**Complements Existing Tools:**
-- Use **Renovate** for dependency updates → Use **gh-sweep** to visualize health
-- Use **Pulumi/Terraform** for IaC → Use **gh-sweep** to detect drift
-- Use **BuildPulse** for ML-based flaky tests → Use **gh-sweep** for simple statistics
-
-See [anti-phases.md](.phases/anti-phases.md) for what we don't do and recommended alternatives.
-
-## Installation
-
-### From Source (Development)
-```bash
-git clone https://github.com/andreamancuso/gh-sweep.git
-cd gh-sweep
-
-# Using mise (recommended)
-mise install
-mise run build
-
-# Or using go directly
-go build -o gh-sweep
-```
-
-### Using Go Install
 ```bash
 go install github.com/andreamancuso/gh-sweep@latest
 ```
 
-### Homebrew
-No Homebrew tap is currently published for this fork.
-
-## Quick Start
+Or build from source:
 
 ```bash
-# Authenticate with gh CLI
+git clone https://github.com/andreamancuso/gh-sweep.git
+cd gh-sweep
+go build -o gh-sweep
+```
+
+## Authentication
+
+Use GitHub CLI auth:
+
+```bash
 gh auth login
-
-# Optional fallback for automation:
-# export GH_TOKEN="..."
-
-# Inspect GitHub Actions storage
-gh-sweep storage --repo owner/repo --list
-
-# Preview recommended cleanup without deleting
-gh-sweep storage --repo owner/repo --recommended --dry-run
-
-# Execute recommended cleanup after non-interactive confirmation
-gh-sweep storage --repo owner/repo --recommended --yes
-
-# Launch interactive branch management
-gh-sweep branches
-
-# Review unresolved PR comments
-gh-sweep comments --repo owner/repo
-
-# Compare branch protection rules
-gh-sweep protection --repos "owner/repo1,owner/repo2"
-
-# Launch full TUI
-gh-sweep
 ```
 
-## Configuration
-
-Create `.gh-sweep.yaml` in your home directory or project root:
-
-```yaml
-# Default GitHub organization
-default_org: your-org
-
-# Repositories to manage
-repositories:
-  - owner/repo1
-  - owner/repo2
-
-# Cache settings
-cache:
-  ttl: 1h
-  path: ~/.cache/gh-sweep
-
-# Filters
-filters:
-  # Exclude bot users from comment search
-  exclude_users:
-    - dependabot
-    - renovate
-
-# Linear integration (optional)
-linear:
-  api_key: lin_api_...
-  workspace: your-workspace
-
-# mani integration (optional)
-mani:
-  config_path: ./mani.yaml
-```
-
-## Usage Examples
-
-### Branch Management
-```bash
-# Interactive branch visualization
-gh-sweep branches
-
-# Show branch tree for specific repo
-gh-sweep branches --repo owner/repo --tree
-
-# Create stacked PRs from selected branches
-gh-sweep branches --stacked-prs
-```
-
-### Comment Review
-```bash
-# Search unresolved comments
-gh-sweep comments --repo owner/repo
-
-# Filter by author
-gh-sweep comments --author username
-
-# Filter by date range
-gh-sweep comments --since 2024-01-01
-
-# Fuzzy search in comment text
-gh-sweep comments --search "TODO|FIXME"
-```
-
-### Branch Protection
-```bash
-# Compare protection rules
-gh-sweep protection --repos "owner/repo1,owner/repo2"
-
-# Apply template to multiple repos
-gh-sweep protection --template templates/default.yaml --apply
-
-# Show drift from baseline
-gh-sweep protection --baseline owner/baseline-repo
-```
-
-### GitHub Actions Storage Cleanup
-```bash
-# Interactive storage dashboard
-gh-sweep storage --repo owner/repo
-
-# Print inventory and largest artifacts
-gh-sweep storage --repo owner/repo --list
-
-# Include release asset and package detail
-gh-sweep storage --repo owner/repo --list --inspect-releases --inspect-packages
-
-# Preview recommended cleanup:
-# - artifacts older than 3 days
-# - caches older than 3 days
-# - failed/cancelled workflow runs
-# - preserves releases, packages, source branches, tags, and git history
-gh-sweep storage --repo owner/repo --recommended --dry-run
-
-# Execute recommended cleanup without an interactive prompt
-gh-sweep storage --repo owner/repo --recommended --yes
-
-# Delete artifacts older than 3 days
-gh-sweep storage --repo owner/repo --delete-artifacts --older-than 3d
-
-# Delete all Actions artifacts
-gh-sweep storage --repo owner/repo --delete-all-artifacts
-
-# Delete Actions caches, optionally constrained by age
-gh-sweep storage --repo owner/repo --delete-caches --older-than 7d
-
-# Delete failed/cancelled workflow runs
-gh-sweep storage --repo owner/repo --delete-runs --conclusion failure,cancelled
-```
-
-Storage categories are intentionally reported separately:
-
-- repo git storage
-- GitHub Actions artifacts
-- GitHub Actions caches
-- workflow run logs
-- releases and release assets
-- GitHub Packages
-
-GitHub billing/storage dashboards can lag after deletion, so the repository API can show cleanup before billing pages refresh.
-
-### Security Notes
-
-`gh-sweep` uses local authentication. Prefer `gh auth login` or a short-lived environment token (`GH_TOKEN`/`GITHUB_TOKEN`) with the minimum required scopes. The app does not persist GitHub tokens in `.gh-sweep.yaml` by default.
-
-Cleanup may require these scopes depending on what you inspect/delete:
-
-- `repo`
-- `workflow`
-- `read:packages`
-- `delete:packages`
-
-Package inspection will report the required refresh command when package scopes are missing:
+For package inspection/deletion, refresh package scopes:
 
 ```bash
 gh auth refresh -s read:packages -s delete:packages
 ```
 
-Deletion operations are irreversible. Artifacts, caches, and workflow runs are previewed before deletion. Successful workflow-run deletion requires typed repository-name confirmation even when `--yes` is supplied. Release and package deletion are not part of recommended cleanup.
+Automation can use `GH_TOKEN` or `GITHUB_TOKEN`. `gh-sweep` does not persist GitHub tokens in `.gh-sweep.yaml`.
+
+## Common commands
+
+Inspect storage:
+
+```bash
+gh-sweep storage --repo owner/repo --list
+```
+
+Inspect releases and packages too:
+
+```bash
+gh-sweep storage --repo owner/repo --list --inspect-releases --inspect-packages
+```
+
+Preview recommended cleanup:
+
+```bash
+gh-sweep storage --repo owner/repo --recommended --dry-run
+```
+
+Run recommended cleanup:
+
+```bash
+gh-sweep storage --repo owner/repo --recommended --yes
+```
+
+Recommended cleanup deletes:
+
+- Actions artifacts older than 3 days
+- Actions caches older than 3 days
+- failed/cancelled workflow runs
+
+It preserves:
+
+- releases and release assets
+- packages
+- successful release runs
+- source branches, tags, and git history
+
+Targeted cleanup:
+
+```bash
+gh-sweep storage --repo owner/repo --delete-artifacts --older-than 3d
+gh-sweep storage --repo owner/repo --delete-all-artifacts
+gh-sweep storage --repo owner/repo --delete-caches --older-than 7d
+gh-sweep storage --repo owner/repo --delete-runs --conclusion failure,cancelled
+```
+
+Open the storage TUI:
+
+```bash
+gh-sweep storage --repo owner/repo
+```
+
+Open the full TUI:
+
+```bash
+gh-sweep --repo owner/repo
+```
+
+Other available commands:
+
+```bash
+gh-sweep branches --repo owner/repo
+gh-sweep comments --repo owner/repo
+gh-sweep protection --repos owner/repo1,owner/repo2
+gh-sweep gha-perf --repo owner/repo
+gh-sweep orphans --namespace owner --list
+gh-sweep watching
+```
+
+## Safety model
+
+Destructive storage operations are preview-first.
+
+- `--dry-run` never deletes.
+- `--yes` skips prompts for normal cleanup.
+- Successful workflow-run deletion still requires typed repository-name confirmation.
+- Release and package deletion are not part of recommended cleanup.
+- Deletions are irreversible.
+
+GitHub billing/storage pages can lag after deletion. The repository API may show cleanup before billing dashboards refresh.
+
+## Optional config
+
+Create `.gh-sweep.yaml` in the repo or your home directory:
+
+```yaml
+default_org: your-org
+repositories:
+  - owner/repo1
+  - owner/repo2
+
+cache:
+  ttl: 1h
+  path: ~/.cache/gh-sweep
+
+filters:
+  exclude_users:
+    - dependabot
+    - renovate
+```
 
 ## Development
 
-### Prerequisites
-- Go 1.25+
-- [mise](https://mise.jdx.dev/) (recommended) or go task runner
-- GitHub CLI authentication or an environment token with the required scopes
-
-### Setup
-```bash
-# Clone repository
-git clone https://github.com/andreamancuso/gh-sweep.git
-cd gh-sweep
-
-# Install dependencies
-mise install
-
-# Run tests
-mise run test
-
-# Run linter
-mise run lint
-
-# Format code
-mise run format
-
-# Run development build
-mise run dev
-```
-
-### Project Structure
-```
-gh-sweep/
-├── cmd/                  # CLI commands (Cobra)
-├── internal/
-│   ├── tui/             # Bubble Tea TUI components
-│   ├── github/          # GitHub API client
-│   ├── cache/           # Caching layer (SQLite)
-│   └── config/          # Configuration management
-├── .phases/             # Phase documentation
-├── .github/workflows/   # CI/CD
-└── README.md
-```
-
-### Running Tests
-```bash
-# Run all tests
-mise run test
-
-# Run specific package tests
-go test ./internal/github/...
-
-# Run with coverage
-go test -cover ./...
-
-# Run TUI tests (using teatest)
-go test ./internal/tui/...
-```
-
-## Documentation
-
-- **[Phase 1: MVP](.phases/phase_1_mvp.md)** - Branch management, protection rules, comment review
-- **[Phase 2: Actions & Settings](.phases/phase_2_actions_and_settings.md)** - GitHub Actions analytics, settings comparison
-- **[Phase 3: Access & Releases](.phases/phase_3_access_and_releases.md)** - Collaborator management, secrets audit, releases
-- **[Phase 4: Integrations](.phases/phase_4_integrations.md)** - Linear, mani, local git tools
-- **[Phase 5: Analytics](.phases/phase_5_analytics.md)** - CI runs, AI reviews, contributor metrics
-- **[Anti-Phases](.phases/anti-phases.md)** - What we don't do and alternatives
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
-
-## Roadmap
-
-- [x] Phase 1 planning and documentation
-- [ ] Phase 1 implementation (MVP)
-- [ ] Phase 2 implementation (Actions & Settings)
-- [ ] Phase 3 implementation (Access & Releases)
-- [ ] Phase 4 implementation (Integrations)
-- [ ] Phase 5 implementation (Analytics)
-
-## Alternatives & Related Tools
-
-### When NOT to use gh-sweep
-
-**Automation & IaC:**
-- Automated dependency updates → Use [Renovate](https://github.com/renovatebot/renovate)
-- Infrastructure as Code → Use [Pulumi](https://www.pulumi.com/blog/managing-github-with-pulumi/) or [Terraform](https://registry.terraform.io/providers/integrations/github/)
-- Stale issue automation → Use [GitHub Actions](https://github.com/actions/stale)
-
-See [anti-phases.md](.phases/anti-phases.md) for detailed comparison and usage guidance.
-
-### Related TUI Tools: Niche Comparison
-
-Each tool serves a distinct purpose - choose based on your workflow:
-
-#### [gh-sweep](https://github.com/andreamancuso/gh-sweep) (this tool)
-**Niche:** Cross-repository management & settings sync
-**Best for:** DevOps teams managing 10+ repos needing consistency
-**Key Features:**
-- Branch protection comparison across repos
-- Cross-repo settings drift detection
-- Bulk operations (delete branches, sync settings)
-- Actions analytics with flaky test detection
-- Secrets audit and compliance checks
-
-**Use gh-sweep when:** You need to ensure consistency across multiple repositories, detect configuration drift, or perform bulk management operations.
-
-#### [gh-dash](https://github.com/dlvhdr/gh-dash)
-**Niche:** Personal PR/Issue dashboard
-**Best for:** Individual developers managing their workload
-**Key Features:**
-- Unified view of PRs assigned to you
-- Issue tracking across repos
-- Notification management
-- Quick PR review workflow
-
-**Use gh-dash when:** You want a personalized dashboard for your PRs and issues across repos you contribute to.
-
-**Complements gh-sweep:** Use gh-dash for daily PR reviews, gh-sweep for repository administration.
-
-#### [watchgha](https://github.com/nedbat/watchgha)
-**Niche:** Real-time GitHub Actions monitoring
-**Best for:** Watching live CI/CD runs as they happen
-**Key Features:**
-- Live tail of workflow runs
-- Real-time status updates
-- Immediate failure notifications
-- Streaming logs
-
-**Use watchgha when:** You're actively developing and need real-time feedback on CI runs.
-
-**Complements gh-sweep:** Use watchgha for live monitoring, gh-sweep for historical analysis and flaky test detection.
-
-#### [gh-poi](https://github.com/seachicken/gh-poi)
-**Niche:** Local PR/Issue search and filtering
-**Best for:** Developers who prefer local, fast search over web UI
-**Key Features:**
-- Fuzzy search PRs/issues
-- Offline-capable caching
-- Fast local search
-- Minimal UI, keyboard-driven
-
-**Use gh-poi when:** You need lightning-fast local search of GitHub data.
-
-**Complements gh-sweep:** Use gh-poi for quick searches, gh-sweep for analysis and bulk operations.
-
-#### [gh-enhance](https://github.com/nix6839/gh-enhance)
-**Niche:** GitHub CLI enhancements
-**Best for:** Power users extending `gh` CLI functionality
-**Key Features:**
-- Custom `gh` subcommands
-- Scriptable workflows
-- CLI-based automation
-- Integration with existing gh workflows
-
-**Use gh-enhance when:** You want to extend the official `gh` CLI with custom commands.
-
-**Complements gh-sweep:** Use gh-enhance for scripting, gh-sweep for interactive TUI workflows.
-
-### Comparison Matrix
-
-| Feature | gh-sweep | gh-dash | watchgha | gh-poi | gh-enhance |
-|---------|----------|---------|----------|--------|------------|
-| **Primary Focus** | Cross-repo admin | Personal dashboard | Live CI monitoring | Fast PR/issue search | CLI extension |
-| **Multi-repo** | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ⚠️ Via scripting |
-| **Branch Management** | ✅ Interactive | ❌ No | ❌ No | ❌ No | ⚠️ Via scripts |
-| **Protection Rules** | ✅ Compare & sync | ❌ No | ❌ No | ❌ No | ❌ No |
-| **Actions Analytics** | ✅ Historical + flaky | ❌ No | ✅ Real-time | ❌ No | ❌ No |
-| **Settings Sync** | ✅ Yes | ❌ No | ❌ No | ❌ No | ❌ No |
-| **PR/Issue View** | ✅ Comments focus | ✅ Workload focus | ❌ No | ✅ Search focus | ⚠️ CLI only |
-| **Real-time Updates** | ❌ No | ⚠️ Polling | ✅ Live streaming | ❌ No | ❌ No |
-| **Offline Search** | ❌ No | ❌ No | ❌ No | ✅ Yes | ❌ No |
-| **Scripting** | ⚠️ Via commands | ❌ No | ❌ No | ❌ No | ✅ Yes |
-| **Interface** | Interactive TUI | Interactive TUI | Streaming TUI | Search TUI | CLI |
-
-### Recommended Combinations
-
-**For Solo Developers:**
-- **gh-dash** (daily PR/issue management) + **watchgha** (active development)
-
-**For Team Leads:**
-- **gh-sweep** (repository administration) + **gh-dash** (personal workflow)
-
-**For DevOps/Platform Teams:**
-- **gh-sweep** (settings enforcement) + **watchgha** (incident response)
-
-**For Power Users:**
-- **gh-poi** (fast searches) + **gh-enhance** (custom workflows) + **gh-sweep** (bulk ops)
+For local setup, tests, security checks, and release-oriented validation, see [docs/development.md](docs/development.md).
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
-## Acknowledgments
-
-- Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) by Charm
-- Inspired by [gh-dash](https://github.com/dlvhdr/gh-dash)
+MIT License. See [LICENSE](LICENSE).
