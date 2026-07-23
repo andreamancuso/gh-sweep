@@ -91,6 +91,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.selector = m.selector.SetSize(msg.Width, msg.Height)
 		return m, nil
 
 	case collaboratorsLoadedMsg:

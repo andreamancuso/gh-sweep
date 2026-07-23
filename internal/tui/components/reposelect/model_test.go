@@ -73,3 +73,41 @@ func TestUpdateEscCancels(t *testing.T) {
 		t.Fatal("expected esc to cancel selection")
 	}
 }
+
+func TestViewWindowsLongRepoListToTerminalHeight(t *testing.T) {
+	repos := []string{
+		"owner/repo-01",
+		"owner/repo-02",
+		"owner/repo-03",
+		"owner/repo-04",
+		"owner/repo-05",
+		"owner/repo-06",
+		"owner/repo-07",
+		"owner/repo-08",
+		"owner/repo-09",
+		"owner/repo-10",
+		"owner/repo-11",
+		"owner/repo-12",
+	}
+	m := New("Select repos", repos).SetSize(80, 16)
+
+	view := m.View()
+	if strings.Contains(view, "owner/repo-12") {
+		t.Fatalf("expected short viewport to hide lower repos, got:\n%s", view)
+	}
+	if !strings.Contains(view, "repositories below") {
+		t.Fatalf("expected below overflow indicator, got:\n%s", view)
+	}
+
+	for range 11 {
+		m, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	}
+
+	view = m.View()
+	if !strings.Contains(view, "repositories above") {
+		t.Fatalf("expected above overflow indicator, got:\n%s", view)
+	}
+	if !strings.Contains(view, "owner/repo-12") {
+		t.Fatalf("expected cursor window to include last repo, got:\n%s", view)
+	}
+}

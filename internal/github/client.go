@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 )
+
+const defaultRequestTimeout = 20 * time.Second
 
 // Client wraps the GitHub API client
 type Client struct {
@@ -21,7 +24,8 @@ type Client struct {
 // It will use gh CLI authentication if available, or fall back to GITHUB_TOKEN env var
 func NewClient(ctx context.Context) (*Client, error) {
 	opts := api.ClientOptions{
-		Host: "github.com",
+		Host:    "github.com",
+		Timeout: defaultRequestTimeout,
 	}
 
 	// Create REST client (will use gh CLI auth or GITHUB_TOKEN)
@@ -48,6 +52,7 @@ func NewClientWithToken(ctx context.Context, token string) (*Client, error) {
 	opts := api.ClientOptions{
 		AuthToken: token,
 		Host:      "github.com",
+		Timeout:   defaultRequestTimeout,
 	}
 
 	restClient, err := api.NewRESTClient(opts)
@@ -69,7 +74,7 @@ func NewClientWithToken(ctx context.Context, token string) (*Client, error) {
 
 // Get performs a GET request to the GitHub API
 func (c *Client) Get(path string, response interface{}) error {
-	return c.apiClient.Get(path, response)
+	return c.apiClient.DoWithContext(c.ctx, http.MethodGet, path, nil, response)
 }
 
 // Post performs a POST request to the GitHub API
@@ -78,7 +83,7 @@ func (c *Client) Post(path string, body interface{}, response interface{}) error
 	if err != nil {
 		return fmt.Errorf("failed to marshal request body: %w", err)
 	}
-	return c.apiClient.Post(path, bytes.NewReader(jsonBody), response)
+	return c.apiClient.DoWithContext(c.ctx, http.MethodPost, path, bytes.NewReader(jsonBody), response)
 }
 
 // Patch performs a PATCH request to the GitHub API
@@ -87,7 +92,7 @@ func (c *Client) Patch(path string, body interface{}, response interface{}) erro
 	if err != nil {
 		return fmt.Errorf("failed to marshal request body: %w", err)
 	}
-	return c.apiClient.Patch(path, bytes.NewReader(jsonBody), response)
+	return c.apiClient.DoWithContext(c.ctx, http.MethodPatch, path, bytes.NewReader(jsonBody), response)
 }
 
 // Put performs a PUT request to the GitHub API
@@ -96,12 +101,12 @@ func (c *Client) Put(path string, body interface{}, response interface{}) error 
 	if err != nil {
 		return fmt.Errorf("failed to marshal request body: %w", err)
 	}
-	return c.apiClient.Put(path, bytes.NewReader(jsonBody), response)
+	return c.apiClient.DoWithContext(c.ctx, http.MethodPut, path, bytes.NewReader(jsonBody), response)
 }
 
 // Delete performs a DELETE request to the GitHub API
 func (c *Client) Delete(path string, response interface{}) error {
-	return c.apiClient.Delete(path, response)
+	return c.apiClient.DoWithContext(c.ctx, http.MethodDelete, path, nil, response)
 }
 
 // Context returns the client's context

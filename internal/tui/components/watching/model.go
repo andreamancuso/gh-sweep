@@ -158,6 +158,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.selector = m.selector.SetSize(msg.Width, msg.Height)
 		return m, nil
 
 	case dataLoadedMsg:
@@ -252,10 +253,12 @@ func (m Model) updateSelection(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 	if result.Confirmed {
+		repos := reposFromConfig(result.Selected)
 		m.loading = true
 		m.selecting = false
+		m.userRepos = repos
 		m.statusMsg = ""
-		return m, loadSelectedData(reposFromConfig(result.Selected))
+		return m, loadSelectedData(repos)
 	}
 
 	return m, nil
@@ -327,7 +330,7 @@ func (m Model) View() string {
 	}
 
 	if m.loading {
-		return "Loading watch status...\n"
+		return fmt.Sprintf("Loading watch status for %d selected repositories...\n", len(m.userRepos))
 	}
 
 	if m.err != nil {
@@ -433,6 +436,7 @@ func (m Model) renderRepoSelection() string {
 func reposFromConfig(configRepos []string) []github.RepoBasic {
 	repos := make([]github.RepoBasic, 0, len(configRepos))
 	for _, repo := range configRepos {
+		repo = strings.TrimSpace(repo)
 		owner, name, ok := strings.Cut(repo, "/")
 		if !ok || owner == "" || name == "" {
 			continue

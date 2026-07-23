@@ -21,6 +21,8 @@ type Model struct {
 	repos    []string
 	selected map[int]bool
 	cursor   int
+	width    int
+	height   int
 	status   string
 }
 
@@ -47,6 +49,12 @@ func New(title string, repos []string, opts ...Option) Model {
 		opt(&m)
 	}
 
+	return m
+}
+
+func (m Model) SetSize(width, height int) Model {
+	m.width = width
+	m.height = height
 	return m
 }
 
@@ -128,7 +136,13 @@ func (m Model) View() string {
 	if len(m.repos) == 0 {
 		b.WriteString("No configured repositories. Add repositories to .gh-sweep.yaml.\n")
 	} else {
-		for i, repo := range m.repos {
+		start, end := m.visibleRange()
+		if start > 0 {
+			b.WriteString(fmt.Sprintf("  ... %d repositories above\n", start))
+		}
+
+		for i := start; i < end; i++ {
+			repo := m.repos[i]
 			cursor := " "
 			if m.cursor == i {
 				cursor = ">"
@@ -147,6 +161,10 @@ func (m Model) View() string {
 			b.WriteString(lineStyle.Render(fmt.Sprintf("%s [%s] %s", cursor, selectMark, repo)))
 			b.WriteString("\n")
 		}
+
+		if end < len(m.repos) {
+			b.WriteString(fmt.Sprintf("  ... %d repositories below\n", len(m.repos)-end))
+		}
 	}
 
 	if m.status != "" {
@@ -160,4 +178,42 @@ func (m Model) View() string {
 	b.WriteString(helpStyle.Render("j/k: navigate | space: toggle | a: select all | n: select none | enter: load selected | esc: back | q: quit"))
 
 	return b.String()
+}
+
+func (m Model) visibleRange() (int, int) {
+	total := len(m.repos)
+	if total == 0 {
+		return 0, 0
+	}
+
+	visible := m.visibleRepoCount()
+	if visible >= total {
+		return 0, total
+	}
+
+	start := m.cursor - visible/2
+	if start < 0 {
+		start = 0
+	}
+
+	end := start + visible
+	if end > total {
+		end = total
+		start = end - visible
+	}
+
+	return start, end
+}
+
+func (m Model) visibleRepoCount() int {
+	if m.height <= 0 {
+		return len(m.repos)
+	}
+
+	const reservedRows = 11
+	visible := m.height - reservedRows
+	if visible < 5 {
+		return 5
+	}
+	return visible
 }
