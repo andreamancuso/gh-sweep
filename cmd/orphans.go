@@ -1,15 +1,17 @@
 package cmd
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
-	"github.com/KyleKing/gh-sweep/internal/github"
-	"github.com/KyleKing/gh-sweep/internal/orphans"
-	orphanstui "github.com/KyleKing/gh-sweep/internal/tui/components/orphans"
+	"github.com/andreamancuso/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/orphans"
+	orphanstui "github.com/andreamancuso/gh-sweep/internal/tui/components/orphans"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
@@ -50,6 +52,7 @@ func init() {
 	orphansCmd.Flags().StringSlice("repos", nil, "Specific repos to scan (comma-separated)")
 	orphansCmd.Flags().Bool("list", false, "CLI list mode (no TUI)")
 	orphansCmd.Flags().Bool("cleanup", false, "Delete orphaned branches")
+	orphansCmd.Flags().Bool("yes", false, "Confirm destructive cleanup without prompting")
 	orphansCmd.Flags().Bool("dry-run", false, "Preview deletions without executing")
 	orphansCmd.Flags().Int("stale-days", 7, "Days of inactivity before a branch is considered stale")
 	orphansCmd.Flags().Bool("include-recent", false, "Include recent branches without PRs")
@@ -71,6 +74,7 @@ func runOrphans(cmd *cobra.Command, args []string) {
 	namespace, _ := cmd.Flags().GetString("namespace")
 	listMode, _ := cmd.Flags().GetBool("list")
 	cleanup, _ := cmd.Flags().GetBool("cleanup")
+	yes, _ := cmd.Flags().GetBool("yes")
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 	staleDays, _ := cmd.Flags().GetInt("stale-days")
 	includeRecent, _ := cmd.Flags().GetBool("include-recent")
@@ -117,7 +121,7 @@ func runOrphans(cmd *cobra.Command, args []string) {
 	}
 
 	if cleanup {
-		runCleanup(ctx, client, result, dryRun)
+		runCleanup(ctx, client, result, namespace, dryRun, yes, os.Stdin, os.Stdout)
 		return
 	}
 
@@ -129,20 +133,24 @@ func runOrphans(cmd *cobra.Command, args []string) {
 	printTable(result)
 }
 
-func runCleanup(ctx context.Context, client *github.Client, result *orphans.NamespaceScanResult, dryRun bool) {
+func runCleanup(ctx context.Context, client *github.Client, result *orphans.NamespaceScanResult, namespace string, dryRun, yes bool, input io.Reader, output io.Writer) {
 	allOrphans := result.AllOrphans()
 
 	if len(allOrphans) == 0 {
-		fmt.Println("No orphaned branches to clean up.")
+		fmt.Fprintln(output, "No orphaned branches to clean up.")
 		return
 	}
 
 	if dryRun {
-		fmt.Println("DRY RUN - Would delete the following branches:")
+		fmt.Fprintln(output, "DRY RUN - Would delete the following branches:")
 	} else {
-		fmt.Println("Deleting orphaned branches:")
+		if !yes && !confirmCleanup(namespace, len(allOrphans), input, output) {
+			fmt.Fprintln(output, "Cleanup cancelled.")
+			return
+		}
+		fmt.Fprintln(output, "Deleting orphaned branches:")
 	}
-	fmt.Println()
+	fmt.Fprintln(output)
 
 	deleted := 0
 	failed := 0
@@ -155,22 +163,34 @@ func runCleanup(ctx context.Context, client *github.Client, result *orphans.Name
 		owner, repo := parts[0], parts[1]
 
 		if dryRun {
-			fmt.Printf("  [DRY RUN] Would delete %s/%s\n", orphan.Repository, orphan.BranchName)
+			fmt.Fprintf(output, "  [DRY RUN] Would delete %s/%s\n", orphan.Repository, orphan.BranchName)
 			deleted++
 			continue
 		}
 
 		err := client.DeleteBranch(owner, repo, orphan.BranchName)
 		if err != nil {
-			fmt.Printf("  [FAILED] %s/%s: %v\n", orphan.Repository, orphan.BranchName, err)
+			fmt.Fprintf(output, "  [FAILED] %s/%s: %v\n", orphan.Repository, orphan.BranchName, err)
 			failed++
 		} else {
-			fmt.Printf("  [DELETED] %s/%s\n", orphan.Repository, orphan.BranchName)
+			fmt.Fprintf(output, "  [DELETED] %s/%s\n", orphan.Repository, orphan.BranchName)
 			deleted++
 		}
 	}
 
-	fmt.Printf("\nTotal: %d deleted, %d failed\n", deleted, failed)
+	fmt.Fprintf(output, "\nTotal: %d deleted, %d failed\n", deleted, failed)
+}
+
+func confirmCleanup(namespace string, count int, input io.Reader, output io.Writer) bool {
+	fmt.Fprintf(output, "This will delete %d branch(es) from namespace %s.\n", count, namespace)
+	fmt.Fprintf(output, "To confirm, type: %s\n> ", namespace)
+
+	scanner := bufio.NewScanner(input)
+	if !scanner.Scan() {
+		return false
+	}
+
+	return scanner.Text() == namespace
 }
 
 func outputResult(result *orphans.NamespaceScanResult, outputPath, format string) {
@@ -195,7 +215,7 @@ func outputResult(result *orphans.NamespaceScanResult, outputPath, format string
 	}
 
 	if outputPath != "" {
-		if err := os.WriteFile(outputPath, []byte(output), 0644); err != nil {
+		if err := os.WriteFile(outputPath, []byte(output), 0600); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to write output file: %v\n", err)
 			os.Exit(1)
 		}

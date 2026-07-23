@@ -20,11 +20,11 @@ type Release struct {
 }
 
 type releaseResponse struct {
-	ID        int    `json:"id"`
-	TagName   string `json:"tag_name"`
-	Name      string `json:"name"`
-	Body      string `json:"body"`
-	Author    struct {
+	ID      int    `json:"id"`
+	TagName string `json:"tag_name"`
+	Name    string `json:"name"`
+	Body    string `json:"body"`
+	Author  struct {
 		Login string `json:"login"`
 	} `json:"author"`
 	CreatedAt   time.Time `json:"created_at"`
@@ -36,7 +36,7 @@ type releaseResponse struct {
 // ListReleases lists all releases for a repository
 func (c *Client) ListReleases(owner, repo string) ([]Release, error) {
 	var response []releaseResponse
-	path := fmt.Sprintf("repos/%s/%s/releases", owner, repo)
+	path := apiPath("repos", owner, repo, "releases")
 
 	if err := c.Get(path, &response); err != nil {
 		return nil, fmt.Errorf("failed to list releases: %w", err)
@@ -46,7 +46,7 @@ func (c *Client) ListReleases(owner, repo string) ([]Release, error) {
 	for i, r := range response {
 		releases[i] = Release{
 			ID:          r.ID,
-			Repository:  fmt.Sprintf("%s/%s", owner, repo),
+			Repository:  repoFullName(owner, repo),
 			TagName:     r.TagName,
 			Name:        r.Name,
 			Body:        r.Body,
@@ -64,7 +64,7 @@ func (c *Client) ListReleases(owner, repo string) ([]Release, error) {
 // GetLatestRelease returns the most recent release
 func (c *Client) GetLatestRelease(owner, repo string) (*Release, error) {
 	var response releaseResponse
-	path := fmt.Sprintf("repos/%s/%s/releases/latest", owner, repo)
+	path := apiPath("repos", owner, repo, "releases", "latest")
 
 	if err := c.Get(path, &response); err != nil {
 		return nil, fmt.Errorf("failed to get latest release: %w", err)
@@ -72,7 +72,7 @@ func (c *Client) GetLatestRelease(owner, repo string) (*Release, error) {
 
 	return &Release{
 		ID:          response.ID,
-		Repository:  fmt.Sprintf("%s/%s", owner, repo),
+		Repository:  repoFullName(owner, repo),
 		TagName:     response.TagName,
 		Name:        response.Name,
 		Body:        response.Body,
@@ -86,10 +86,10 @@ func (c *Client) GetLatestRelease(owner, repo string) (*Release, error) {
 
 // ReleaseComparison compares releases across repositories
 type ReleaseComparison struct {
-	Repositories     []string
-	LatestReleases   map[string]*Release
-	OutdatedRepos    []string // Repos with no release in 90+ days
-	NonSemVerRepos   []string // Repos not following semver
+	Repositories   []string
+	LatestReleases map[string]*Release
+	OutdatedRepos  []string // Repos with no release in 90+ days
+	NonSemVerRepos []string // Repos not following semver
 }
 
 // CompareReleases compares releases across multiple repositories

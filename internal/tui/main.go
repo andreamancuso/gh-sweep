@@ -1,19 +1,20 @@
 package tui
 
 import (
-	"github.com/KyleKing/gh-sweep/internal/orphans"
-	"github.com/KyleKing/gh-sweep/internal/tui/components/analytics"
-	"github.com/KyleKing/gh-sweep/internal/tui/components/branches"
-	"github.com/KyleKing/gh-sweep/internal/tui/components/collaborators"
-	"github.com/KyleKing/gh-sweep/internal/tui/components/comments"
-	"github.com/KyleKing/gh-sweep/internal/tui/components/ghaperf"
-	orphanstui "github.com/KyleKing/gh-sweep/internal/tui/components/orphans"
-	"github.com/KyleKing/gh-sweep/internal/tui/components/protection"
-	"github.com/KyleKing/gh-sweep/internal/tui/components/releases"
-	"github.com/KyleKing/gh-sweep/internal/tui/components/secrets"
-	"github.com/KyleKing/gh-sweep/internal/tui/components/settings"
-	"github.com/KyleKing/gh-sweep/internal/tui/components/watching"
-	"github.com/KyleKing/gh-sweep/internal/tui/components/webhooks"
+	"github.com/andreamancuso/gh-sweep/internal/orphans"
+	"github.com/andreamancuso/gh-sweep/internal/tui/components/analytics"
+	"github.com/andreamancuso/gh-sweep/internal/tui/components/branches"
+	"github.com/andreamancuso/gh-sweep/internal/tui/components/collaborators"
+	"github.com/andreamancuso/gh-sweep/internal/tui/components/comments"
+	"github.com/andreamancuso/gh-sweep/internal/tui/components/ghaperf"
+	orphanstui "github.com/andreamancuso/gh-sweep/internal/tui/components/orphans"
+	"github.com/andreamancuso/gh-sweep/internal/tui/components/protection"
+	"github.com/andreamancuso/gh-sweep/internal/tui/components/releases"
+	"github.com/andreamancuso/gh-sweep/internal/tui/components/secrets"
+	"github.com/andreamancuso/gh-sweep/internal/tui/components/settings"
+	"github.com/andreamancuso/gh-sweep/internal/tui/components/storage"
+	"github.com/andreamancuso/gh-sweep/internal/tui/components/watching"
+	"github.com/andreamancuso/gh-sweep/internal/tui/components/webhooks"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -35,6 +36,7 @@ const (
 	ViewSecrets
 	ViewReleases
 	ViewOrphans
+	ViewStorage
 )
 
 // MainModel represents the main TUI application state with navigation
@@ -55,6 +57,7 @@ type MainModel struct {
 	releasesModel      releases.Model
 	secretsModel       secrets.Model
 	settingsModel      settings.Model
+	storageModel       storage.Model
 	watchingModel      watching.Model
 	webhooksModel      webhooks.Model
 
@@ -101,6 +104,8 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ghaPerfModel = newModel.(ghaperf.Model)
 		newModel, _ = m.settingsModel.Update(msg)
 		m.settingsModel = newModel.(settings.Model)
+		newModel, _ = m.storageModel.Update(msg)
+		m.storageModel = newModel.(storage.Model)
 		newModel, _ = m.webhooksModel.Update(msg)
 		m.webhooksModel = newModel.(webhooks.Model)
 		newModel, _ = m.collaboratorsModel.Update(msg)
@@ -206,6 +211,13 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.orphansModel = orphanstui.NewModel(namespace, orphans.DefaultScanOptions())
 				return m, m.orphansModel.Init()
+
+			case "s":
+				m.mode = ViewStorage
+				if m.repo != "" {
+					m.storageModel = storage.NewModel(m.repo)
+					return m, m.storageModel.Init()
+				}
 			}
 		} else {
 			// Handle back navigation
@@ -276,6 +288,11 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				var newModel tea.Model
 				newModel, cmd = m.orphansModel.Update(msg)
 				m.orphansModel = newModel.(orphanstui.Model)
+
+			case ViewStorage:
+				var newModel tea.Model
+				newModel, cmd = m.storageModel.Update(msg)
+				m.storageModel = newModel.(storage.Model)
 			}
 
 			return m, cmd
@@ -317,6 +334,8 @@ func (m MainModel) View() string {
 		return m.watchingModel.View()
 	case ViewOrphans:
 		return m.orphansModel.View()
+	case ViewStorage:
+		return m.storageModel.View()
 	default:
 		return m.renderHome()
 	}
@@ -349,6 +368,8 @@ func (m MainModel) renderHome() string {
 	content += " - Audit and manage repo watching\n"
 	content += menuItemStyle.Render("[o] 🌿 Orphan Branches")
 	content += " - Detect and clean up orphaned branches\n\n"
+	content += menuItemStyle.Render("[s] 🧹 Storage Cleanup")
+	content += " - Inspect and clean up Actions storage\n\n"
 
 	// Phase 1: Core Management
 	content += sectionStyle.Render("Phase 1: Core Management") + "\n"
@@ -383,7 +404,7 @@ func (m MainModel) renderHome() string {
 		content += helpStyle.Render("💡 Configure with --repo flag or .gh-sweep.yaml\n\n")
 	}
 
-	content += helpStyle.Render("Press 0-9/o/p to select a view | q to quit")
+	content += helpStyle.Render("Press 0-9/o/p/s to select a view | q to quit")
 
 	return content
 }

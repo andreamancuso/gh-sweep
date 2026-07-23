@@ -5,23 +5,23 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/KyleKing/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/github"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 // Model represents the settings comparison TUI state
 type Model struct {
-	repos      []string
-	settings   map[string]*github.RepoSettings
-	baseline   string
-	diffs      map[string][]github.SettingsDiff
-	cursor     int
-	width      int
-	height     int
-	loading    bool
-	err        error
-	viewMode   string // "overview", "diff"
+	repos    []string
+	settings map[string]*github.RepoSettings
+	baseline string
+	diffs    map[string][]github.SettingsDiff
+	cursor   int
+	width    int
+	height   int
+	loading  bool
+	err      error
+	viewMode string // "overview", "diff"
 }
 
 // NewModel creates a new settings comparison model

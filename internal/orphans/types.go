@@ -3,7 +3,7 @@ package orphans
 import (
 	"time"
 
-	"github.com/KyleKing/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/github"
 )
 
 type OrphanType string
@@ -54,10 +54,10 @@ type ScanResult struct {
 }
 
 type NamespaceScanResult struct {
-	Namespace   string
-	IsOrg       bool
-	Results     []ScanResult
-	TotalRepos  int
+	Namespace    string
+	IsOrg        bool
+	Results      []ScanResult
+	TotalRepos   int
 	TotalOrphans int
 }
 

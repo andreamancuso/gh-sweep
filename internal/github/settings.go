@@ -30,14 +30,14 @@ type repoResponse struct {
 // GetRepoSettings retrieves repository settings
 func (c *Client) GetRepoSettings(owner, repo string) (*RepoSettings, error) {
 	var response repoResponse
-	path := fmt.Sprintf("repos/%s/%s", owner, repo)
+	path := apiPath("repos", owner, repo)
 
 	if err := c.Get(path, &response); err != nil {
 		return nil, fmt.Errorf("failed to get repo settings: %w", err)
 	}
 
 	return &RepoSettings{
-		Repository:          fmt.Sprintf("%s/%s", owner, repo),
+		Repository:          repoFullName(owner, repo),
 		DefaultBranch:       response.DefaultBranch,
 		AllowMergeCommit:    response.AllowMergeCommit,
 		AllowSquashMerge:    response.AllowSquashMerge,

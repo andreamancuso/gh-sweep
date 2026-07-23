@@ -30,18 +30,18 @@ type TestRun struct {
 
 // FlakyDetectionConfig configures flaky test detection
 type FlakyDetectionConfig struct {
-	MinFlips         int     // Minimum flips to be considered flaky
-	MinFailureRate   float64 // Minimum failure rate (0.0-1.0)
-	TimeWindow       time.Duration
-	SameCommitOnly   bool // Only detect same-commit flips
-	IncludeSkipped   bool // Include skipped tests in analysis
+	MinFlips       int     // Minimum flips to be considered flaky
+	MinFailureRate float64 // Minimum failure rate (0.0-1.0)
+	TimeWindow     time.Duration
+	SameCommitOnly bool // Only detect same-commit flips
+	IncludeSkipped bool // Include skipped tests in analysis
 }
 
 // DefaultFlakyConfig returns sensible defaults
 func DefaultFlakyConfig() FlakyDetectionConfig {
 	return FlakyDetectionConfig{
 		MinFlips:       2,
-		MinFailureRate: 0.1, // 10%
+		MinFailureRate: 0.1,                // 10%
 		TimeWindow:     7 * 24 * time.Hour, // 7 days
 		SameCommitOnly: false,
 		IncludeSkipped: false,
@@ -172,8 +172,8 @@ func calculateTestStats(runs []TestRun, includeSkipped bool) testStats {
 
 // flipDetection holds flip analysis results
 type flipDetection struct {
-	count    int
-	lastFlip time.Time
+	count           int
+	lastFlip        time.Time
 	sameCommitFlips int
 }
 

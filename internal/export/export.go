@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/KyleKing/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/github"
 )
 
 // ExportFormat represents the export format
@@ -31,25 +31,33 @@ func ExportWorkflowStats(stats *github.WorkflowRunStats, format ExportFormat, ou
 }
 
 func exportStatsCSV(stats *github.WorkflowRunStats, outputPath string) error {
-	file, err := os.Create(outputPath)
+	file, err := createPrivateFile(outputPath)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
 	defer file.Close()
 
 	writer := csv.NewWriter(file)
-	defer writer.Flush()
 
 	// Header
-	writer.Write([]string{"Metric", "Value"})
+	if err := writer.Write([]string{"Metric", "Value"}); err != nil {
+		return fmt.Errorf("failed to write CSV header: %w", err)
+	}
 
 	// Data
-	writer.Write([]string{"Total Runs", fmt.Sprintf("%d", stats.TotalRuns)})
-	writer.Write([]string{"Success Rate", fmt.Sprintf("%.2f%%", stats.SuccessRate)})
-	writer.Write([]string{"Failure Count", fmt.Sprintf("%d", stats.FailureCount)})
-	writer.Write([]string{"Avg Duration", stats.AvgDuration.String()})
+	rows := [][]string{
+		{"Total Runs", fmt.Sprintf("%d", stats.TotalRuns)},
+		{"Success Rate", fmt.Sprintf("%.2f%%", stats.SuccessRate)},
+		{"Failure Count", fmt.Sprintf("%d", stats.FailureCount)},
+		{"Avg Duration", stats.AvgDuration.String()},
+	}
+	for _, row := range rows {
+		if err := writer.Write(row); err != nil {
+			return fmt.Errorf("failed to write CSV row: %w", err)
+		}
+	}
 
-	return nil
+	return flushCSV(writer)
 }
 
 func exportStatsJSON(stats *github.WorkflowRunStats, outputPath string) error {
@@ -58,7 +66,7 @@ func exportStatsJSON(stats *github.WorkflowRunStats, outputPath string) error {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	if err := os.WriteFile(outputPath, data, 0644); err != nil {
+	if err := os.WriteFile(outputPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 
@@ -78,21 +86,22 @@ func ExportComments(comments []github.Comment, format ExportFormat, outputPath s
 }
 
 func exportCommentsCSV(comments []github.Comment, outputPath string) error {
-	file, err := os.Create(outputPath)
+	file, err := createPrivateFile(outputPath)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
 	defer file.Close()
 
 	writer := csv.NewWriter(file)
-	defer writer.Flush()
 
 	// Header
-	writer.Write([]string{"Repository", "PR", "Author", "Path", "Line", "Body", "Created"})
+	if err := writer.Write([]string{"Repository", "PR", "Author", "Path", "Line", "Body", "Created"}); err != nil {
+		return fmt.Errorf("failed to write CSV header: %w", err)
+	}
 
 	// Data
 	for _, c := range comments {
-		writer.Write([]string{
+		if err := writer.Write([]string{
 			c.Repository,
 			fmt.Sprintf("%d", c.PRNumber),
 			c.Author,
@@ -100,10 +109,12 @@ func exportCommentsCSV(comments []github.Comment, outputPath string) error {
 			fmt.Sprintf("%d", c.Line),
 			c.Body,
 			c.CreatedAt.Format(time.RFC3339),
-		})
+		}); err != nil {
+			return fmt.Errorf("failed to write CSV row: %w", err)
+		}
 	}
 
-	return nil
+	return flushCSV(writer)
 }
 
 func exportCommentsJSON(comments []github.Comment, outputPath string) error {
@@ -112,7 +123,7 @@ func exportCommentsJSON(comments []github.Comment, outputPath string) error {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	if err := os.WriteFile(outputPath, data, 0644); err != nil {
+	if err := os.WriteFile(outputPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 
@@ -132,30 +143,33 @@ func ExportProtectionRules(rules []*github.ProtectionRule, format ExportFormat, 
 }
 
 func exportProtectionCSV(rules []*github.ProtectionRule, outputPath string) error {
-	file, err := os.Create(outputPath)
+	file, err := createPrivateFile(outputPath)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
 	defer file.Close()
 
 	writer := csv.NewWriter(file)
-	defer writer.Flush()
 
 	// Header
-	writer.Write([]string{"Repository", "Branch", "Required Reviews", "Code Owner Reviews", "Enforce Admins"})
+	if err := writer.Write([]string{"Repository", "Branch", "Required Reviews", "Code Owner Reviews", "Enforce Admins"}); err != nil {
+		return fmt.Errorf("failed to write CSV header: %w", err)
+	}
 
 	// Data
 	for _, rule := range rules {
-		writer.Write([]string{
+		if err := writer.Write([]string{
 			rule.Repository,
 			rule.Branch,
 			fmt.Sprintf("%d", rule.RequiredReviews),
 			fmt.Sprintf("%v", rule.RequireCodeOwnerReviews),
 			fmt.Sprintf("%v", rule.EnforceAdmins),
-		})
+		}); err != nil {
+			return fmt.Errorf("failed to write CSV row: %w", err)
+		}
 	}
 
-	return nil
+	return flushCSV(writer)
 }
 
 func exportProtectionJSON(rules []*github.ProtectionRule, outputPath string) error {
@@ -164,9 +178,21 @@ func exportProtectionJSON(rules []*github.ProtectionRule, outputPath string) err
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	if err := os.WriteFile(outputPath, data, 0644); err != nil {
+	if err := os.WriteFile(outputPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 
+	return nil
+}
+
+func createPrivateFile(outputPath string) (*os.File, error) {
+	return os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600) // #nosec G304 -- output path is an explicit user-requested export target.
+}
+
+func flushCSV(writer *csv.Writer) error {
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return fmt.Errorf("failed to flush CSV: %w", err)
+	}
 	return nil
 }

@@ -80,10 +80,10 @@ func TestExtractLinearIssueIDs(t *testing.T) {
 // TestCheckPRIssueSyncStatus tests sync status detection
 func TestCheckPRIssueSyncStatus(t *testing.T) {
 	tests := []struct {
-		name        string
-		prStatus    string
-		issueState  string
-		expectSync  bool
+		name         string
+		prStatus     string
+		issueState   string
+		expectSync   bool
 		expectReason string
 	}{
 		{

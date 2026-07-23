@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/KyleKing/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/github"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -13,7 +13,7 @@ import (
 // Model represents the webhook management TUI state
 type Model struct {
 	repos    []string
-	webhooks map[string][]github.Webhook              // repo -> webhooks
+	webhooks map[string][]github.Webhook             // repo -> webhooks
 	health   map[string]map[int]github.WebhookHealth // repo -> webhook ID -> health
 	cursor   int
 	width    int

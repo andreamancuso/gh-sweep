@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/KyleKing/gh-sweep/internal/tui"
+	"github.com/andreamancuso/gh-sweep/internal/tui"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )

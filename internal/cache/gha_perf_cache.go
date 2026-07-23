@@ -8,13 +8,13 @@ import (
 	"sort"
 	"time"
 
-	"github.com/KyleKing/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/github"
 )
 
 type GHAPerfCache struct {
-	UpdatedAt time.Time            `json:"updated_at"`
-	Repo      string               `json:"repo"`
-	Runs      []github.RunTiming   `json:"runs"`
+	UpdatedAt time.Time          `json:"updated_at"`
+	Repo      string             `json:"repo"`
+	Runs      []github.RunTiming `json:"runs"`
 }
 
 type GHAPerfCacheManager struct {
@@ -30,7 +30,7 @@ func NewGHAPerfCacheManager(cacheDir string) (*GHAPerfCacheManager, error) {
 		cacheDir = filepath.Join(homeDir, ".cache", "gh-sweep", "gha-perf")
 	}
 
-	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+	if err := os.MkdirAll(cacheDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
@@ -45,7 +45,7 @@ func (m *GHAPerfCacheManager) cacheFilePath(owner, repo string) string {
 func (m *GHAPerfCacheManager) Load(owner, repo string) (*GHAPerfCache, error) {
 	path := m.cacheFilePath(owner, repo)
 
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- path is derived from the private cache directory plus sanitized owner/repo file name.
 	if err != nil {
 		if os.IsNotExist(err) {
 			return &GHAPerfCache{
@@ -86,7 +86,7 @@ func (m *GHAPerfCacheManager) Save(owner, repo string, cache *GHAPerfCache) erro
 	}
 
 	path := m.cacheFilePath(owner, repo)
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := os.WriteFile(path, data, 0600); err != nil {
 		return fmt.Errorf("failed to write cache file: %w", err)
 	}
 

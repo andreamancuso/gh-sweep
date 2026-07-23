@@ -6,21 +6,21 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KyleKing/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/github"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 // Model represents the analytics TUI state
 type Model struct {
-	repo           string
-	stats          *github.WorkflowRunStats
-	runs           []github.WorkflowRun
-	width          int
-	height         int
-	loading        bool
-	err            error
-	viewMode       string // "overview", "flaky", "errors"
+	repo     string
+	stats    *github.WorkflowRunStats
+	runs     []github.WorkflowRun
+	width    int
+	height   int
+	loading  bool
+	err      error
+	viewMode string // "overview", "flaky", "errors"
 }
 
 // NewModel creates a new analytics model

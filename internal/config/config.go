@@ -30,7 +30,6 @@ type CacheConfig struct {
 
 // GitHubConfig represents GitHub API settings
 type GitHubConfig struct {
-	Token  string `yaml:"token"`
 	APIURL string `yaml:"api_url"`
 }
 
@@ -133,10 +132,11 @@ func Load() (*Config, error) {
 	cfg := DefaultConfig()
 
 	// Try to load from multiple locations
+	homeDir, _ := os.UserHomeDir()
 	configPaths := []string{
 		".gh-sweep.yaml",
-		filepath.Join(os.Getenv("HOME"), ".gh-sweep.yaml"),
-		filepath.Join(os.Getenv("HOME"), ".config", "gh-sweep", "config.yaml"),
+		filepath.Join(homeDir, ".gh-sweep.yaml"),
+		filepath.Join(homeDir, ".config", "gh-sweep", "config.yaml"),
 	}
 
 	var configData []byte
@@ -144,7 +144,7 @@ func Load() (*Config, error) {
 	var foundPath string
 
 	for _, path := range configPaths {
-		configData, err = os.ReadFile(path)
+		configData, err = os.ReadFile(path) // #nosec G304 -- only fixed gh-sweep config locations are read.
 		if err == nil {
 			foundPath = path
 			break
@@ -179,11 +179,11 @@ func (c *Config) Save(path string) error {
 
 	// Create directory if needed
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := os.WriteFile(path, data, 0600); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 
