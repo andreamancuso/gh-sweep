@@ -102,6 +102,15 @@ func (m MainModel) Init() tea.Cmd {
 	return nil
 }
 
+func (m MainModel) applyCurrentSize(model tea.Model) tea.Model {
+	if !m.ready {
+		return model
+	}
+
+	resized, _ := model.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
+	return resized
+}
+
 // Update handles messages and updates the model
 func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -151,12 +160,14 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "0":
 				m.mode = ViewWatching
 				m.watchingModel = watching.NewModel(m.repos)
+				m.watchingModel = m.applyCurrentSize(m.watchingModel).(watching.Model)
 				return m, m.watchingModel.Init()
 
 			case "1":
 				m.mode = ViewBranches
 				if m.repo != "" {
 					m.branchesModel = branches.NewModel(m.repo, "main")
+					m.branchesModel = m.applyCurrentSize(m.branchesModel).(branches.Model)
 					return m, m.branchesModel.Init()
 				}
 
@@ -164,6 +175,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = ViewProtection
 				if len(m.repos) > 0 {
 					m.protectionModel = protection.NewModel(m.repos, m.baseline)
+					m.protectionModel = m.applyCurrentSize(m.protectionModel).(protection.Model)
 					return m, m.protectionModel.Init()
 				}
 
@@ -171,6 +183,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = ViewComments
 				if m.repo != "" {
 					m.commentsModel = comments.NewModel(m.repo)
+					m.commentsModel = m.applyCurrentSize(m.commentsModel).(comments.Model)
 					return m, m.commentsModel.Init()
 				}
 
@@ -178,6 +191,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = ViewAnalytics
 				if m.repo != "" {
 					m.analyticsModel = analytics.NewModel(m.repo)
+					m.analyticsModel = m.applyCurrentSize(m.analyticsModel).(analytics.Model)
 					return m, m.analyticsModel.Init()
 				}
 
@@ -185,6 +199,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = ViewGHAPerf
 				if m.repo != "" {
 					m.ghaPerfModel = ghaperf.NewModel(m.repo)
+					m.ghaPerfModel = m.applyCurrentSize(m.ghaPerfModel).(ghaperf.Model)
 					return m, m.ghaPerfModel.Init()
 				}
 
@@ -192,6 +207,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = ViewSettings
 				if len(m.repos) > 0 {
 					m.settingsModel = settings.NewModel(m.repos, m.baseline)
+					m.settingsModel = m.applyCurrentSize(m.settingsModel).(settings.Model)
 					return m, m.settingsModel.Init()
 				}
 
@@ -199,6 +215,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = ViewWebhooks
 				if len(m.repos) > 0 {
 					m.webhooksModel = webhooks.NewModel(m.repos)
+					m.webhooksModel = m.applyCurrentSize(m.webhooksModel).(webhooks.Model)
 					return m, m.webhooksModel.Init()
 				}
 
@@ -206,6 +223,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = ViewCollaborators
 				if len(m.repos) > 0 {
 					m.collaboratorsModel = collaborators.NewModel(m.repos)
+					m.collaboratorsModel = m.applyCurrentSize(m.collaboratorsModel).(collaborators.Model)
 					return m, m.collaboratorsModel.Init()
 				}
 
@@ -213,6 +231,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = ViewSecrets
 				if m.org != "" && len(m.repos) > 0 {
 					m.secretsModel = secrets.NewModel(m.org, m.repos)
+					m.secretsModel = m.applyCurrentSize(m.secretsModel).(secrets.Model)
 					return m, m.secretsModel.Init()
 				}
 
@@ -220,6 +239,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = ViewReleases
 				if len(m.repos) > 0 {
 					m.releasesModel = releases.NewModel(m.repos)
+					m.releasesModel = m.applyCurrentSize(m.releasesModel).(releases.Model)
 					return m, m.releasesModel.Init()
 				}
 
@@ -230,12 +250,14 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					namespace = ""
 				}
 				m.orphansModel = orphanstui.NewModel(namespace, orphans.DefaultScanOptions())
+				m.orphansModel = m.applyCurrentSize(m.orphansModel).(orphanstui.Model)
 				return m, m.orphansModel.Init()
 
 			case "s":
 				m.mode = ViewStorage
 				if m.repo != "" {
 					m.storageModel = storage.NewModel(m.repo)
+					m.storageModel = m.applyCurrentSize(m.storageModel).(storage.Model)
 					return m, m.storageModel.Init()
 				}
 			}

@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/andreamancuso/gh-sweep/internal/github"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -77,5 +78,27 @@ func TestSelectionViewShowsBulkHelpers(t *testing.T) {
 		if !strings.Contains(view, want) {
 			t.Fatalf("expected view to contain %q, got:\n%s", want, view)
 		}
+	}
+}
+
+func TestDataLoadedShowsRepoFailureWarning(t *testing.T) {
+	m := NewModel([]string{"andreamancuso/bt-browser"})
+	m.selecting = false
+	m.loading = true
+
+	updated, _ := m.Update(dataLoadedMsg{
+		userRepos: []github.RepoBasic{
+			{Owner: "andreamancuso", Name: "bt-browser", FullName: "andreamancuso/bt-browser"},
+		},
+		subscriptions: map[string]*github.Subscription{},
+		warnings:      []string{"andreamancuso/bt-browser: timed out"},
+	})
+	m = updated.(Model)
+
+	if m.loading {
+		t.Fatal("expected loading to stop after dataLoadedMsg")
+	}
+	if !strings.Contains(m.View(), "Loaded watch status for 0/1 repositories. 1 failed or timed out.") {
+		t.Fatalf("expected warning status in view, got:\n%s", m.View())
 	}
 }

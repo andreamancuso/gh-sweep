@@ -28,6 +28,8 @@ type Model struct {
 
 type Option func(*Model)
 
+const defaultVisibleRepoCount = 12
+
 func WithSubtitle(subtitle string) Option {
 	return func(m *Model) {
 		m.subtitle = subtitle
@@ -74,6 +76,26 @@ func (m Model) Update(msg tea.KeyMsg) (Model, Result) {
 	case "down", "j":
 		if m.cursor < len(m.repos)-1 {
 			m.cursor++
+		}
+
+	case "pgup", "pageup":
+		m.cursor -= m.visibleRepoCount()
+		if m.cursor < 0 {
+			m.cursor = 0
+		}
+
+	case "pgdown", "pagedown":
+		m.cursor += m.visibleRepoCount()
+		if m.cursor >= len(m.repos) {
+			m.cursor = len(m.repos) - 1
+		}
+
+	case "home":
+		m.cursor = 0
+
+	case "end":
+		if len(m.repos) > 0 {
+			m.cursor = len(m.repos) - 1
 		}
 
 	case " ":
@@ -137,6 +159,7 @@ func (m Model) View() string {
 		b.WriteString("No configured repositories. Add repositories to .gh-sweep.yaml.\n")
 	} else {
 		start, end := m.visibleRange()
+		b.WriteString(fmt.Sprintf("Showing repositories %d-%d of %d\n", start+1, end, len(m.repos)))
 		if start > 0 {
 			b.WriteString(fmt.Sprintf("  ... %d repositories above\n", start))
 		}
@@ -175,7 +198,7 @@ func (m Model) View() string {
 	}
 
 	b.WriteString("\n")
-	b.WriteString(helpStyle.Render("j/k: navigate | space: toggle | a: select all | n: select none | enter: load selected | esc: back | q: quit"))
+	b.WriteString(helpStyle.Render("j/k: navigate | pgup/pgdown: page | space: toggle | a: select all | n: select none | enter: load selected | esc: back | q: quit"))
 
 	return b.String()
 }
@@ -207,7 +230,7 @@ func (m Model) visibleRange() (int, int) {
 
 func (m Model) visibleRepoCount() int {
 	if m.height <= 0 {
-		return len(m.repos)
+		return defaultVisibleRepoCount
 	}
 
 	const reservedRows = 11

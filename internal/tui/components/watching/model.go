@@ -48,6 +48,7 @@ type dataLoadedMsg struct {
 	username      string
 	userRepos     []github.RepoBasic
 	subscriptions map[string]*github.Subscription
+	warnings      []string
 	err           error
 }
 
@@ -85,12 +86,13 @@ func (m Model) loadData() tea.Msg {
 		return dataLoadedMsg{err: fmt.Errorf("failed to list user repos: %w", err)}
 	}
 
-	subscriptions := loadSubscriptions(client, repos)
+	subscriptions, warnings := loadSubscriptions(client, repos)
 
 	return dataLoadedMsg{
 		username:      username,
 		userRepos:     repos,
 		subscriptions: subscriptions,
+		warnings:      warnings,
 		err:           nil,
 	}
 }
@@ -103,17 +105,13 @@ func loadSelectedData(repos []github.RepoBasic) tea.Cmd {
 			return dataLoadedMsg{err: fmt.Errorf("failed to create GitHub client: %w", err)}
 		}
 
-		username, err := client.GetAuthenticatedUser()
-		if err != nil {
-			return dataLoadedMsg{err: fmt.Errorf("failed to get authenticated user: %w", err)}
-		}
-
-		subscriptions := loadSubscriptions(client, repos)
+		subscriptions, warnings := loadSubscriptions(client, repos)
 
 		return dataLoadedMsg{
-			username:      username,
+			username:      "",
 			userRepos:     repos,
 			subscriptions: subscriptions,
+			warnings:      warnings,
 			err:           nil,
 		}
 	}
@@ -168,6 +166,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.userRepos = msg.userRepos
 		m.subscriptions = msg.subscriptions
 		m.err = msg.err
+		if len(msg.warnings) > 0 {
+			m.statusMsg = fmt.Sprintf("Loaded watch status for %d/%d repositories. %d failed or timed out.", len(msg.subscriptions), len(msg.userRepos), len(msg.warnings))
+		}
 		m.cursor = 0
 		m.selected = make(map[int]bool)
 		return m, nil
@@ -345,7 +346,10 @@ func (m Model) View() string {
 
 	b.WriteString(titleStyle.Render("Watch Status Audit"))
 	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf("User: %s\n\n", m.username))
+	if m.username != "" {
+		b.WriteString(fmt.Sprintf("User: %s\n", m.username))
+	}
+	b.WriteString(fmt.Sprintf("Repositories: %d\n\n", len(m.userRepos)))
 
 	activeTab := lipgloss.NewStyle().
 		Bold(true).
@@ -451,10 +455,11 @@ func reposFromConfig(configRepos []string) []github.RepoBasic {
 	return repos
 }
 
-func loadSubscriptions(client *github.Client, repos []github.RepoBasic) map[string]*github.Subscription {
+func loadSubscriptions(client *github.Client, repos []github.RepoBasic) (map[string]*github.Subscription, []string) {
 	const concurrency = 8
 
 	subscriptions := make(map[string]*github.Subscription)
+	var warnings []string
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, concurrency)
@@ -470,6 +475,9 @@ func loadSubscriptions(client *github.Client, repos []github.RepoBasic) map[stri
 
 			sub, err := client.GetRepoSubscription(repo.Owner, repo.Name)
 			if err != nil {
+				mu.Lock()
+				warnings = append(warnings, fmt.Sprintf("%s: %v", repo.FullName, err))
+				mu.Unlock()
 				return
 			}
 
@@ -480,5 +488,5 @@ func loadSubscriptions(client *github.Client, repos []github.RepoBasic) map[stri
 	}
 
 	wg.Wait()
-	return subscriptions
+	return subscriptions, warnings
 }

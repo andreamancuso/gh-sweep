@@ -111,3 +111,37 @@ func TestViewWindowsLongRepoListToTerminalHeight(t *testing.T) {
 		t.Fatalf("expected cursor window to include last repo, got:\n%s", view)
 	}
 }
+
+func TestViewWindowsLongRepoListWithoutTerminalSize(t *testing.T) {
+	repos := []string{
+		"owner/repo-01",
+		"owner/repo-02",
+		"owner/repo-03",
+		"owner/repo-04",
+		"owner/repo-05",
+		"owner/repo-06",
+		"owner/repo-07",
+		"owner/repo-08",
+		"owner/repo-09",
+		"owner/repo-10",
+		"owner/repo-11",
+		"owner/repo-12",
+		"owner/repo-13",
+		"owner/repo-14",
+	}
+	m := New("Select repos", repos)
+
+	view := m.View()
+	if strings.Contains(view, "owner/repo-14") {
+		t.Fatalf("expected fallback viewport to hide lower repos, got:\n%s", view)
+	}
+	if !strings.Contains(view, "Showing repositories 1-12 of 14") {
+		t.Fatalf("expected fallback viewport status, got:\n%s", view)
+	}
+
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyPgDown})
+	view = m.View()
+	if !strings.Contains(view, "owner/repo-14") {
+		t.Fatalf("expected page-down to show lower repos, got:\n%s", view)
+	}
+}
