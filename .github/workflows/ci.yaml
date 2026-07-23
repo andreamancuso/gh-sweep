@@ -51,9 +51,21 @@ jobs:
           fi
 
   build:
-    name: Build
-    runs-on: ubuntu-latest
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-latest
+            artifact_name: gh-sweep-linux
+            artifact_path: dist/gh-sweep
+          - name: windows
+            os: windows-latest
+            artifact_name: gh-sweep-windows
+            artifact_path: dist/gh-sweep.exe
 
     steps:
       - name: Checkout code
@@ -78,6 +90,6 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: gh-sweep-${{ runner.os }}
-          path: dist/gh-sweep
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_path }}
           retention-days: 7
