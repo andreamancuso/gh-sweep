@@ -267,81 +267,90 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = ViewHome
 				return m, nil
 			}
-
-			// Forward to active sub-model
-			var cmd tea.Cmd
-			switch m.mode {
-			case ViewBranches:
-				var newModel tea.Model
-				newModel, cmd = m.branchesModel.Update(msg)
-				m.branchesModel = newModel.(branches.Model)
-
-			case ViewProtection:
-				var newModel tea.Model
-				newModel, cmd = m.protectionModel.Update(msg)
-				m.protectionModel = newModel.(protection.Model)
-
-			case ViewComments:
-				var newModel tea.Model
-				newModel, cmd = m.commentsModel.Update(msg)
-				m.commentsModel = newModel.(comments.Model)
-
-			case ViewAnalytics:
-				var newModel tea.Model
-				newModel, cmd = m.analyticsModel.Update(msg)
-				m.analyticsModel = newModel.(analytics.Model)
-
-			case ViewGHAPerf:
-				var newModel tea.Model
-				newModel, cmd = m.ghaPerfModel.Update(msg)
-				m.ghaPerfModel = newModel.(ghaperf.Model)
-
-			case ViewSettings:
-				var newModel tea.Model
-				newModel, cmd = m.settingsModel.Update(msg)
-				m.settingsModel = newModel.(settings.Model)
-
-			case ViewWebhooks:
-				var newModel tea.Model
-				newModel, cmd = m.webhooksModel.Update(msg)
-				m.webhooksModel = newModel.(webhooks.Model)
-
-			case ViewCollaborators:
-				var newModel tea.Model
-				newModel, cmd = m.collaboratorsModel.Update(msg)
-				m.collaboratorsModel = newModel.(collaborators.Model)
-
-			case ViewSecrets:
-				var newModel tea.Model
-				newModel, cmd = m.secretsModel.Update(msg)
-				m.secretsModel = newModel.(secrets.Model)
-
-			case ViewReleases:
-				var newModel tea.Model
-				newModel, cmd = m.releasesModel.Update(msg)
-				m.releasesModel = newModel.(releases.Model)
-
-			case ViewWatching:
-				var newModel tea.Model
-				newModel, cmd = m.watchingModel.Update(msg)
-				m.watchingModel = newModel.(watching.Model)
-
-			case ViewOrphans:
-				var newModel tea.Model
-				newModel, cmd = m.orphansModel.Update(msg)
-				m.orphansModel = newModel.(orphanstui.Model)
-
-			case ViewStorage:
-				var newModel tea.Model
-				newModel, cmd = m.storageModel.Update(msg)
-				m.storageModel = newModel.(storage.Model)
-			}
-
-			return m, cmd
 		}
 	}
 
+	// Bubble Tea commands return their results as messages to the top-level
+	// model. Forward every message, not only key presses, or child views remain
+	// stuck in their loading state after asynchronous work completes.
+	if m.mode != ViewHome {
+		return m.updateActive(msg)
+	}
+
 	return m, nil
+}
+
+func (m MainModel) updateActive(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
+	switch m.mode {
+	case ViewBranches:
+		var newModel tea.Model
+		newModel, cmd = m.branchesModel.Update(msg)
+		m.branchesModel = newModel.(branches.Model)
+
+	case ViewProtection:
+		var newModel tea.Model
+		newModel, cmd = m.protectionModel.Update(msg)
+		m.protectionModel = newModel.(protection.Model)
+
+	case ViewComments:
+		var newModel tea.Model
+		newModel, cmd = m.commentsModel.Update(msg)
+		m.commentsModel = newModel.(comments.Model)
+
+	case ViewAnalytics:
+		var newModel tea.Model
+		newModel, cmd = m.analyticsModel.Update(msg)
+		m.analyticsModel = newModel.(analytics.Model)
+
+	case ViewGHAPerf:
+		var newModel tea.Model
+		newModel, cmd = m.ghaPerfModel.Update(msg)
+		m.ghaPerfModel = newModel.(ghaperf.Model)
+
+	case ViewSettings:
+		var newModel tea.Model
+		newModel, cmd = m.settingsModel.Update(msg)
+		m.settingsModel = newModel.(settings.Model)
+
+	case ViewWebhooks:
+		var newModel tea.Model
+		newModel, cmd = m.webhooksModel.Update(msg)
+		m.webhooksModel = newModel.(webhooks.Model)
+
+	case ViewCollaborators:
+		var newModel tea.Model
+		newModel, cmd = m.collaboratorsModel.Update(msg)
+		m.collaboratorsModel = newModel.(collaborators.Model)
+
+	case ViewSecrets:
+		var newModel tea.Model
+		newModel, cmd = m.secretsModel.Update(msg)
+		m.secretsModel = newModel.(secrets.Model)
+
+	case ViewReleases:
+		var newModel tea.Model
+		newModel, cmd = m.releasesModel.Update(msg)
+		m.releasesModel = newModel.(releases.Model)
+
+	case ViewWatching:
+		var newModel tea.Model
+		newModel, cmd = m.watchingModel.Update(msg)
+		m.watchingModel = newModel.(watching.Model)
+
+	case ViewOrphans:
+		var newModel tea.Model
+		newModel, cmd = m.orphansModel.Update(msg)
+		m.orphansModel = newModel.(orphanstui.Model)
+
+	case ViewStorage:
+		var newModel tea.Model
+		newModel, cmd = m.storageModel.Update(msg)
+		m.storageModel = newModel.(storage.Model)
+	}
+
+	return m, cmd
 }
 
 // View renders the model

@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/andreamancuso/gh-sweep/internal/config"
+	"github.com/andreamancuso/gh-sweep/internal/github"
+	"github.com/andreamancuso/gh-sweep/internal/tui/components/watching"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -88,5 +90,49 @@ func TestMainModelAppliesCurrentSizeWhenOpeningWatchStatus(t *testing.T) {
 	view := m.View()
 	if !strings.Contains(view, "Showing repositories 1-5 of 8") {
 		t.Fatalf("expected watch selector to use current terminal size, got:\n%s", view)
+	}
+}
+
+func TestMainModelForwardsAsyncMessagesToActiveView(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Repositories = []string{"andreamancuso/gh-sweep"}
+
+	model, _ := NewMainModel("", cfg).Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m := model.(MainModel)
+
+	model, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("0")})
+	m = model.(MainModel)
+	model, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = model.(MainModel)
+	if cmd == nil {
+		t.Fatal("expected repository confirmation to start async loading")
+	}
+	if !strings.Contains(m.View(), "Loading watch status") {
+		t.Fatalf("expected loading view before completion, got:\n%s", m.View())
+	}
+
+	repo := github.RepoBasic{
+		Owner:    "andreamancuso",
+		Name:     "gh-sweep",
+		FullName: "andreamancuso/gh-sweep",
+	}
+	model, _ = m.Update(watching.DataLoadedMsg{
+		UserRepos: []github.RepoBasic{repo},
+		Subscriptions: map[string]*github.Subscription{
+			repo.FullName: {
+				Repository: repo.FullName,
+				State:      github.WatchStateSubscribed,
+				Subscribed: true,
+			},
+		},
+	})
+	m = model.(MainModel)
+
+	view := m.View()
+	if strings.Contains(view, "Loading watch status") {
+		t.Fatalf("expected async completion to leave loading view, got:\n%s", view)
+	}
+	if !strings.Contains(view, "Repositories: 1") {
+		t.Fatalf("expected completed Watch Status view, got:\n%s", view)
 	}
 }

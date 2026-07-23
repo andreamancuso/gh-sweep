@@ -86,17 +86,17 @@ func TestDataLoadedShowsRepoFailureWarning(t *testing.T) {
 	m.selecting = false
 	m.loading = true
 
-	updated, _ := m.Update(dataLoadedMsg{
-		userRepos: []github.RepoBasic{
+	updated, _ := m.Update(DataLoadedMsg{
+		UserRepos: []github.RepoBasic{
 			{Owner: "andreamancuso", Name: "bt-browser", FullName: "andreamancuso/bt-browser"},
 		},
-		subscriptions: map[string]*github.Subscription{},
-		warnings:      []string{"andreamancuso/bt-browser: timed out"},
+		Subscriptions: map[string]*github.Subscription{},
+		Warnings:      []string{"andreamancuso/bt-browser: timed out"},
 	})
 	m = updated.(Model)
 
 	if m.loading {
-		t.Fatal("expected loading to stop after dataLoadedMsg")
+		t.Fatal("expected loading to stop after DataLoadedMsg")
 	}
 	if !strings.Contains(m.View(), "Loaded watch status for 0/1 repositories. 1 failed or timed out.") {
 		t.Fatalf("expected warning status in view, got:\n%s", m.View())

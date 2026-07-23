@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/andreamancuso/gh-sweep/internal/github"
@@ -49,6 +50,10 @@ Examples:
 		for _, repo := range repos {
 			sub, err := client.GetRepoSubscription(repo.Owner, repo.Name)
 			if err != nil {
+				if errors.Is(err, github.ErrNotificationsScopeRequired) {
+					fmt.Printf("Error: %v\n", err)
+					return
+				}
 				continue
 			}
 			if sub.State == github.WatchStateNotWatching {

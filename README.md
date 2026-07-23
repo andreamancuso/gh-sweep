@@ -34,6 +34,12 @@ For package inspection/deletion, refresh package scopes:
 gh auth refresh -s read:packages -s delete:packages
 ```
 
+For Watch Status, add the notifications scope:
+
+```bash
+gh auth refresh -h github.com -s notifications
+```
+
 Automation can use `GH_TOKEN` or `GITHUB_TOKEN`. `gh-sweep` does not persist GitHub tokens in `.gh-sweep.yaml`.
 
 ## Common commands

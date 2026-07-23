@@ -1,9 +1,13 @@
 package github
 
 import (
+	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
+
+	"github.com/cli/go-gh/v2/pkg/api"
 )
 
 type WatchState string
@@ -12,6 +16,10 @@ const (
 	WatchStateSubscribed  WatchState = "subscribed"
 	WatchStateIgnored     WatchState = "ignored"
 	WatchStateNotWatching WatchState = ""
+)
+
+var ErrNotificationsScopeRequired = errors.New(
+	"GitHub authentication is missing the notifications scope; run `gh auth refresh -h github.com -s notifications` and try again",
 )
 
 type Subscription struct {
@@ -102,7 +110,10 @@ func (c *Client) GetRepoSubscription(owner, repo string) (*Subscription, error) 
 	path := apiPath("repos", owner, repo, "subscription")
 
 	if err := c.Get(path, &response); err != nil {
-		if strings.Contains(err.Error(), "404") {
+		if isMissingNotificationsScope(err) {
+			return nil, ErrNotificationsScopeRequired
+		}
+		if isHTTPStatus(err, http.StatusNotFound) {
 			return &Subscription{
 				Repository: repoFullName(owner, repo),
 				Subscribed: false,
@@ -128,6 +139,37 @@ func (c *Client) GetRepoSubscription(owner, repo string) (*Subscription, error) 
 		CreatedAt:  response.CreatedAt,
 		State:      state,
 	}, nil
+}
+
+func isMissingNotificationsScope(err error) bool {
+	var httpErr *api.HTTPError
+	if !errors.As(err, &httpErr) {
+		return false
+	}
+
+	accepted := splitScopes(httpErr.Headers.Get("X-Accepted-OAuth-Scopes"))
+	granted := splitScopes(httpErr.Headers.Get("X-OAuth-Scopes"))
+	return accepted["notifications"] && len(granted) > 0 && !granted["notifications"]
+}
+
+func isHTTPStatus(err error, status int) bool {
+	var httpErr *api.HTTPError
+	if errors.As(err, &httpErr) {
+		return httpErr.StatusCode == status
+	}
+
+	return strings.Contains(err.Error(), fmt.Sprintf("HTTP %d", status))
+}
+
+func splitScopes(value string) map[string]bool {
+	scopes := make(map[string]bool)
+	for scope := range strings.SplitSeq(value, ",") {
+		scope = strings.TrimSpace(scope)
+		if scope != "" {
+			scopes[scope] = true
+		}
+	}
+	return scopes
 }
 
 func (c *Client) SetRepoSubscription(owner, repo string, subscribed, ignored bool) (*Subscription, error) {

@@ -2,15 +2,21 @@ package watching
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/andreamancuso/gh-sweep/internal/github"
 	"github.com/andreamancuso/gh-sweep/internal/tui/components/reposelect"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
+
+const watchStatusLoadTimeout = 15 * time.Second
+
+var loadingFrames = []string{"|", "/", "-", "\\"}
 
 type Model struct {
 	username      string
@@ -26,6 +32,7 @@ type Model struct {
 	viewMode      string
 	selected      map[int]bool
 	statusMsg     string
+	loadingFrame  int
 }
 
 func NewModel(configRepos ...[]string) Model {
@@ -44,12 +51,12 @@ func NewModel(configRepos ...[]string) Model {
 	}
 }
 
-type dataLoadedMsg struct {
-	username      string
-	userRepos     []github.RepoBasic
-	subscriptions map[string]*github.Subscription
-	warnings      []string
-	err           error
+type DataLoadedMsg struct {
+	Username      string
+	UserRepos     []github.RepoBasic
+	Subscriptions map[string]*github.Subscription
+	Warnings      []string
+	Err           error
 }
 
 type watchResultMsg struct {
@@ -62,6 +69,14 @@ type unwatchResultMsg struct {
 	err  error
 }
 
+type loadingTickMsg time.Time
+
+func loadingTick() tea.Cmd {
+	return tea.Tick(200*time.Millisecond, func(now time.Time) tea.Msg {
+		return loadingTickMsg(now)
+	})
+}
+
 func (m Model) Init() tea.Cmd {
 	if m.selecting {
 		return nil
@@ -70,49 +85,59 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) loadData() tea.Msg {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), watchStatusLoadTimeout)
+	defer cancel()
+
 	client, err := github.NewClient(ctx)
 	if err != nil {
-		return dataLoadedMsg{err: fmt.Errorf("failed to create GitHub client: %w", err)}
+		return DataLoadedMsg{Err: fmt.Errorf("failed to create GitHub client: %w", err)}
 	}
 
 	username, err := client.GetAuthenticatedUser()
 	if err != nil {
-		return dataLoadedMsg{err: fmt.Errorf("failed to get authenticated user: %w", err)}
+		return DataLoadedMsg{Err: fmt.Errorf("failed to get authenticated user: %w", err)}
 	}
 
 	repos, err := client.ListUserRepos()
 	if err != nil {
-		return dataLoadedMsg{err: fmt.Errorf("failed to list user repos: %w", err)}
+		return DataLoadedMsg{Err: fmt.Errorf("failed to list user repos: %w", err)}
 	}
 
-	subscriptions, warnings := loadSubscriptions(client, repos)
+	subscriptions, warnings, err := loadSubscriptions(client, repos)
+	if err != nil {
+		return DataLoadedMsg{Err: err}
+	}
 
-	return dataLoadedMsg{
-		username:      username,
-		userRepos:     repos,
-		subscriptions: subscriptions,
-		warnings:      warnings,
-		err:           nil,
+	return DataLoadedMsg{
+		Username:      username,
+		UserRepos:     repos,
+		Subscriptions: subscriptions,
+		Warnings:      warnings,
+		Err:           nil,
 	}
 }
 
 func loadSelectedData(repos []github.RepoBasic) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), watchStatusLoadTimeout)
+		defer cancel()
+
 		client, err := github.NewClient(ctx)
 		if err != nil {
-			return dataLoadedMsg{err: fmt.Errorf("failed to create GitHub client: %w", err)}
+			return DataLoadedMsg{Err: fmt.Errorf("failed to create GitHub client: %w", err)}
 		}
 
-		subscriptions, warnings := loadSubscriptions(client, repos)
+		subscriptions, warnings, err := loadSubscriptions(client, repos)
+		if err != nil {
+			return DataLoadedMsg{Err: err}
+		}
 
-		return dataLoadedMsg{
-			username:      "",
-			userRepos:     repos,
-			subscriptions: subscriptions,
-			warnings:      warnings,
-			err:           nil,
+		return DataLoadedMsg{
+			Username:      "",
+			UserRepos:     repos,
+			Subscriptions: subscriptions,
+			Warnings:      warnings,
+			Err:           nil,
 		}
 	}
 }
@@ -159,19 +184,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.selector = m.selector.SetSize(msg.Width, msg.Height)
 		return m, nil
 
-	case dataLoadedMsg:
+	case DataLoadedMsg:
 		m.loading = false
 		m.selecting = false
-		m.username = msg.username
-		m.userRepos = msg.userRepos
-		m.subscriptions = msg.subscriptions
-		m.err = msg.err
-		if len(msg.warnings) > 0 {
-			m.statusMsg = fmt.Sprintf("Loaded watch status for %d/%d repositories. %d failed or timed out.", len(msg.subscriptions), len(msg.userRepos), len(msg.warnings))
+		m.username = msg.Username
+		m.userRepos = msg.UserRepos
+		m.subscriptions = msg.Subscriptions
+		m.err = msg.Err
+		if len(msg.Warnings) > 0 {
+			m.statusMsg = fmt.Sprintf("Loaded watch status for %d/%d repositories. %d failed or timed out.", len(msg.Subscriptions), len(msg.UserRepos), len(msg.Warnings))
 		}
 		m.cursor = 0
 		m.selected = make(map[int]bool)
 		return m, nil
+
+	case loadingTickMsg:
+		if !m.loading {
+			return m, nil
+		}
+		m.loadingFrame = (m.loadingFrame + 1) % len(loadingFrames)
+		return m, loadingTick()
 
 	case watchResultMsg:
 		if msg.err != nil {
@@ -259,7 +291,8 @@ func (m Model) updateSelection(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.selecting = false
 		m.userRepos = repos
 		m.statusMsg = ""
-		return m, loadSelectedData(repos)
+		m.loadingFrame = 0
+		return m, tea.Batch(loadSelectedData(repos), loadingTick())
 	}
 
 	return m, nil
@@ -331,7 +364,12 @@ func (m Model) View() string {
 	}
 
 	if m.loading {
-		return fmt.Sprintf("Loading watch status for %d selected repositories...\n", len(m.userRepos))
+		return fmt.Sprintf(
+			"%s Loading watch status for %d selected repositories... (maximum %s)\n\nEsc: back\n",
+			loadingFrames[m.loadingFrame],
+			len(m.userRepos),
+			watchStatusLoadTimeout,
+		)
 	}
 
 	if m.err != nil {
@@ -455,11 +493,12 @@ func reposFromConfig(configRepos []string) []github.RepoBasic {
 	return repos
 }
 
-func loadSubscriptions(client *github.Client, repos []github.RepoBasic) (map[string]*github.Subscription, []string) {
+func loadSubscriptions(client *github.Client, repos []github.RepoBasic) (map[string]*github.Subscription, []string, error) {
 	const concurrency = 8
 
 	subscriptions := make(map[string]*github.Subscription)
 	var warnings []string
+	var fatalErr error
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, concurrency)
@@ -477,6 +516,9 @@ func loadSubscriptions(client *github.Client, repos []github.RepoBasic) (map[str
 			if err != nil {
 				mu.Lock()
 				warnings = append(warnings, fmt.Sprintf("%s: %v", repo.FullName, err))
+				if errors.Is(err, github.ErrNotificationsScopeRequired) {
+					fatalErr = err
+				}
 				mu.Unlock()
 				return
 			}
@@ -488,5 +530,5 @@ func loadSubscriptions(client *github.Client, repos []github.RepoBasic) (map[str
 	}
 
 	wg.Wait()
-	return subscriptions, warnings
+	return subscriptions, warnings, fatalErr
 }
